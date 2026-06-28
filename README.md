@@ -4,7 +4,7 @@
 
 `web3-opportunity-scout` is a production-oriented skill for discovering early Web3 opportunities from configurable data sources.
 
-The current repository already supports a full single-source MVP around RootData:
+The current repository already supports a working multi-adapter MVP:
 
 - fetch source data
 - cache raw payloads
@@ -13,6 +13,14 @@ The current repository already supports a full single-source MVP around RootData
 - merge repeated entities
 - score opportunities
 - build ranked outputs, briefs, theses, dossiers, and state updates
+
+Adapters currently wired:
+
+- `rootdata_projects` for broad project discovery
+- `blockbeats_original_newsflash` for faster-moving Chinese market/project signals
+- `defillama_new_protocols` for free protocol/category discovery
+- `github_trending_builders` for repo activity and shipping signals
+- `surf_project_ai_news` for selective premium enrichment with credit-aware usage
 
 It is designed for:
 
@@ -116,12 +124,22 @@ web3-opportunity-scout/
 - `config.yaml` controls focus chains, sectors, scoring thresholds, and directories.
 - `sources.yaml` controls source enablement and request settings.
 - Each source can declare an `adapter` that maps to `fetch-<adapter>.py` and `normalize-<adapter>.py`.
+- Source handoff is source-scoped: downstream steps now resolve the latest artifact for the active source rather than the latest global file.
 - `filters.active_profile` chooses the current stream, such as `opportunity` or `market`.
 - Sources can define `filter_profiles.<profile>` overrides for source-specific second-pass filtering.
 - `.env` is loaded automatically by the CLI when present.
 - Empty `focus.chains` and `focus.sectors` mean market-wide scanning by default.
 - `reporting.locale` supports `auto`, `en`, `zh`, and `bilingual`.
 - `reporting.generate_formats` supports `html` and `md`. The recommended push artifact is `output/briefs/latest-brief.html`.
+- Premium or rate-sensitive sources such as Surf should stay disabled by default and be used as enrichment or lower-frequency scheduled jobs.
+
+### Validation
+
+```bash
+.venv/bin/python -m py_compile scripts/*.py tests/*.py
+make test
+.venv/bin/python scripts/doctor.py
+```
 
 ### Hermes / OpenClaw
 

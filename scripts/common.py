@@ -5,7 +5,9 @@ from __future__ import annotations
 import json
 import os
 import re
+import tempfile
 import uuid
+import fcntl
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -114,9 +116,11 @@ def read_json_file(path: Path, default: Any) -> Any:
 
 def write_json_file(path: Path, data: Any) -> None:
     ensure_dir(path.parent)
-    with path.open("w", encoding="utf-8") as handle:
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=path.parent, delete=False) as handle:
         json.dump(data, handle, indent=2, ensure_ascii=False)
         handle.write("\n")
+        temp_path = Path(handle.name)
+    temp_path.replace(path)
 
 
 def slugify(value: str) -> str:
@@ -196,6 +200,17 @@ def latest_json_file(path: Path) -> Path:
     return candidates[-1]
 
 
+def latest_json_file_for_source(path: Path, source_id: str) -> Path:
+    needle = slugify(source_id)
+    candidates = sorted(
+        [item for item in path.rglob("*.json") if needle in slugify(item.stem)],
+        key=lambda item: (item.stat().st_mtime, str(item)),
+    )
+    if not candidates:
+        raise FileNotFoundError(f"No JSON files found under {path} for source {source_id}")
+    return candidates[-1]
+
+
 def clamp(value: float, minimum: float, maximum: float) -> float:
     return max(minimum, min(maximum, value))
 
@@ -264,58 +279,73 @@ def write_run_state(state_dir: Path, run_state: dict[str, Any]) -> None:
     write_json_file(state_dir / "run-state.json", run_state)
 
 
+def mutate_run_state(state_dir: Path, mutator) -> None:
+    ensure_dir(state_dir)
+    lock_path = state_dir / ".run-state.lock"
+    with lock_path.open("w", encoding="utf-8") as handle:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        run_state = read_json_file(state_dir / "run-state.json", default_run_state())
+        mutator(run_state)
+        write_run_state(state_dir, run_state)
+        fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
 def start_pipeline_run(state_dir: Path, source_id: str, top_n: int, skip_fetch: bool) -> str:
-    run_state = load_run_state(state_dir)
     run_id = make_run_id("pipeline")
-    run_entry = {
-        "run_id": run_id,
-        "status": "running",
-        "source_id": source_id,
-        "top_n": top_n,
-        "skip_fetch": skip_fetch,
-        "started_at": utc_now_iso(),
-        "finished_at": None,
-        "current_stage": "init",
-        "completed_stages": [],
-        "error": None,
-    }
-    run_state["active_run"] = run_id
-    run_state.setdefault("runs", []).append(run_entry)
-    run_state["runs"] = run_state["runs"][-50:]
-    write_run_state(state_dir, run_state)
+
+    def mutator(run_state: dict[str, Any]) -> None:
+        run_entry = {
+            "run_id": run_id,
+            "status": "running",
+            "source_id": source_id,
+            "top_n": top_n,
+            "skip_fetch": skip_fetch,
+            "started_at": utc_now_iso(),
+            "finished_at": None,
+            "current_stage": "init",
+            "completed_stages": [],
+            "error": None,
+        }
+        run_state["active_run"] = run_id
+        run_state.setdefault("runs", []).append(run_entry)
+        run_state["runs"] = run_state["runs"][-50:]
+
+    mutate_run_state(state_dir, mutator)
     return run_id
 
 
 def update_pipeline_stage(state_dir: Path, run_id: str, stage_name: str, completed: bool = False) -> None:
-    run_state = load_run_state(state_dir)
-    for run in run_state.get("runs", []):
-        if run.get("run_id") != run_id:
-            continue
-        run["current_stage"] = stage_name
-        if completed:
-            stages = list(run.get("completed_stages", []))
-            if stage_name not in stages:
-                stages.append(stage_name)
-            run["completed_stages"] = stages
-        break
-    write_run_state(state_dir, run_state)
+    def mutator(run_state: dict[str, Any]) -> None:
+        for run in run_state.get("runs", []):
+            if run.get("run_id") != run_id:
+                continue
+            run["current_stage"] = stage_name
+            if completed:
+                stages = list(run.get("completed_stages", []))
+                if stage_name not in stages:
+                    stages.append(stage_name)
+                run["completed_stages"] = stages
+            break
+
+    mutate_run_state(state_dir, mutator)
 
 
 def finish_pipeline_run(state_dir: Path, run_id: str, status: str, error: str | None = None) -> None:
-    run_state = load_run_state(state_dir)
-    for run in run_state.get("runs", []):
-        if run.get("run_id") != run_id:
-            continue
-        run["status"] = status
-        run["finished_at"] = utc_now_iso()
-        run["error"] = error
-        break
+    def mutator(run_state: dict[str, Any]) -> None:
+        for run in run_state.get("runs", []):
+            if run.get("run_id") != run_id:
+                continue
+            run["status"] = status
+            run["finished_at"] = utc_now_iso()
+            run["error"] = error
+            break
 
-    if run_state.get("active_run") == run_id:
-        run_state["active_run"] = None
-    if status == "completed":
-        run_state["last_completed_run"] = run_id
-    write_run_state(state_dir, run_state)
+        if run_state.get("active_run") == run_id:
+            run_state["active_run"] = None
+        if status == "completed":
+            run_state["last_completed_run"] = run_id
+
+    mutate_run_state(state_dir, mutator)
 
 
 def default_event_memory() -> dict[str, Any]:

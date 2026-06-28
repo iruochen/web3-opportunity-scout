@@ -10,6 +10,7 @@ from common import (
     default_project_dossiers,
     ensure_dir,
     latest_json_file,
+    latest_json_file_for_source,
     load_effective_yaml,
     output_dir_from_config,
     read_json_file,
@@ -22,6 +23,7 @@ from common import (
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Build richer project dossiers from summary context.")
     parser.add_argument("--input", help="Optional path to context JSON file")
+    parser.add_argument("--source-id", help="Resolve the latest context artifact for this source when --input is omitted")
     parser.add_argument("--top", type=int, default=12, help="Number of projects to keep in dossiers")
     return parser.parse_args()
 
@@ -52,7 +54,12 @@ def main() -> int:
     state_dir = state_dir_from_config(config)
     ensure_dir(output_dir)
 
-    input_path = ROOT / args.input if args.input else latest_json_file(output_dir / "context")
+    if args.input:
+        input_path = ROOT / args.input
+    elif args.source_id:
+        input_path = latest_json_file_for_source(output_dir / "context", args.source_id)
+    else:
+        input_path = latest_json_file(output_dir / "context")
     context_artifact = read_json_file(input_path, {})
     projects = context_artifact.get("projects", [])[: args.top]
     dossiers = [dossier_from_context(project) for project in projects]

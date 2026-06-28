@@ -4,7 +4,7 @@
 
 `web3-opportunity-scout` 是一个面向生产环境的 Web3 早期机会发现 skill，用来从可配置的数据源中稳定产出高价值项目机会线索。
 
-当前仓库已经支持一个围绕 RootData 的完整单源 MVP：
+当前仓库已经支持一个可运行的多 adapter MVP：
 
 - 抓取来源数据
 - 缓存原始 payload
@@ -13,6 +13,14 @@
 - 合并重复实体
 - 机会评分
 - 产出排序结果、brief、thesis、dossier 和状态更新
+
+当前已接好的 adapter：
+
+- `rootdata_projects`：做广义项目发现
+- `blockbeats_original_newsflash`：补快速中文项目/市场信号
+- `defillama_new_protocols`：免费协议发现和赛道分类
+- `github_trending_builders`：补代码活跃度和持续交付信号
+- `surf_project_ai_news`：做额度敏感的高级 enrichment
 
 它面向的使用场景包括：
 
@@ -117,12 +125,22 @@ web3-opportunity-scout/
 - `config.yaml` 控制关注链、赛道、评分阈值和目录位置。
 - `sources.yaml` 控制 source 启用状态和请求配置。
 - 每个 source 都可以声明一个 `adapter`，映射到 `fetch-<adapter>.py` 和 `normalize-<adapter>.py`。
+- 各阶段中间产物已经按 source 精确接力，下游不会再误读“全局最新文件”。
 - `filters.active_profile` 用来选择当前跑的是哪种 stream，例如 `opportunity` 或 `market`。
 - source 可以通过 `filter_profiles.<profile>` 定义自己专属的二次筛选规则。
 - 当 `.env` 存在时，CLI 会自动加载其中的环境变量。
 - 当 `focus.chains` 和 `focus.sectors` 为空时，默认执行全市场扫描。
 - `reporting.locale` 支持 `auto`、`en`、`zh`、`bilingual`。
 - `reporting.generate_formats` 支持 `html` 和 `md`，其中推荐用于推送展示的是 `output/briefs/latest-brief.html`。
+- Surf 这类额度型来源建议默认关闭，只在 enrichment 或低频定时任务里启用。
+
+### 验证命令
+
+```bash
+.venv/bin/python -m py_compile scripts/*.py tests/*.py
+make test
+.venv/bin/python scripts/doctor.py
+```
 
 ### Hermes / OpenClaw 集成
 

@@ -18,11 +18,14 @@ from scripts.common import (
     finish_pipeline_run,
     infer_participation_angle,
     infer_validation_sources,
+    read_json_file,
     load_dotenv_file,
     load_run_state,
+    latest_json_file_for_source,
     start_pipeline_run,
     update_pipeline_stage,
     latest_json_file,
+    write_json_file,
 )
 
 
@@ -91,6 +94,23 @@ class FileSelectionTests(unittest.TestCase):
             time.sleep(0.01)
             newer.write_text("{}", encoding="utf-8")
             self.assertEqual(latest_json_file(root), newer)
+
+    def test_latest_json_file_for_source_filters_by_source(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            first = root / "111-rootdata_projects-normalized.json"
+            second = root / "222-surf_project_ai_news-normalized.json"
+            first.write_text("{}", encoding="utf-8")
+            time.sleep(0.01)
+            second.write_text("{}", encoding="utf-8")
+            self.assertEqual(latest_json_file_for_source(root, "surf_project_ai_news"), second)
+
+    def test_write_json_file_round_trips(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "state.json"
+            payload = {"hello": "world", "count": 2}
+            write_json_file(path, payload)
+            self.assertEqual(read_json_file(path, {}), payload)
 
 
 if __name__ == "__main__":

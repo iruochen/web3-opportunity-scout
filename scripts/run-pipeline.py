@@ -63,27 +63,27 @@ def main() -> int:
         update_pipeline_stage(state_dir, run_id, "normalize", completed=True)
 
         update_pipeline_stage(state_dir, run_id, "filter")
-        run_step(["scripts/filter-candidates.py"])
+        run_step(["scripts/filter-candidates.py", "--source-id", args.source])
         update_pipeline_stage(state_dir, run_id, "filter", completed=True)
 
         update_pipeline_stage(state_dir, run_id, "merge")
-        run_step(["scripts/merge-project-entities.py"])
+        run_step(["scripts/merge-project-entities.py", "--source-id", args.source])
         update_pipeline_stage(state_dir, run_id, "merge", completed=True)
 
         update_pipeline_stage(state_dir, run_id, "score")
-        run_step(["scripts/score-opportunities.py", "--top", str(args.top)])
+        run_step(["scripts/score-opportunities.py", "--source-id", args.source, "--top", str(args.top)])
         update_pipeline_stage(state_dir, run_id, "score", completed=True)
 
         update_pipeline_stage(state_dir, run_id, "context")
-        run_step(["scripts/build-summary-context.py", "--top", str(args.top)])
+        run_step(["scripts/build-summary-context.py", "--source-id", args.source, "--top", str(args.top)])
         update_pipeline_stage(state_dir, run_id, "context", completed=True)
 
         update_pipeline_stage(state_dir, run_id, "dossiers")
-        run_step(["scripts/build-project-dossiers.py", "--top", str(args.top)])
+        run_step(["scripts/build-project-dossiers.py", "--source-id", args.source, "--top", str(args.top)])
         update_pipeline_stage(state_dir, run_id, "dossiers", completed=True)
 
         update_pipeline_stage(state_dir, run_id, "briefs")
-        run_step(["scripts/build-briefs.py", "--top", str(min(args.top, 8))])
+        run_step(["scripts/build-briefs.py", "--source-id", args.source, "--top", str(min(args.top, 8))])
         update_pipeline_stage(state_dir, run_id, "briefs", completed=True)
 
         update_pipeline_stage(state_dir, run_id, "check-run-state")

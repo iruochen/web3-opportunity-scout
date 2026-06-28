@@ -20,6 +20,8 @@
 3. 每条机会线索都可追溯。
 4. pull 和 push 共享同一套流水线。
 5. 状态层是产品能力，不是附属实现。
+6. 中间产物必须按 source 接力，不能谁最后写文件就读谁。
+7. 额度型 API 主要做 enrichment，不应该拿来无差别高频轮询。
 
 ### 系统总览
 
@@ -52,3 +54,11 @@ flowchart LR
 - `记忆与状态层`：去重、watchlist、delivery history
 - `Compact Context`：模型可消费的证据包
 - `Agent 判断层`：排序、解释、thesis
+
+### Source 分层策略
+
+- `RootData` 负责广义项目发现和基础项目元信息。
+- `BlockBeats` 负责更快的中文信号面，适合配合较强的二次筛选。
+- `DeFiLlama` 负责免费协议发现和赛道分类。
+- `GitHub` 负责 builder 持续交付和 repo 活跃度信号。
+- `Surf` 负责高级 enrichment，应该通过 query 上限和较低 cadence 控制额度消耗。

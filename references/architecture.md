@@ -20,6 +20,8 @@ This document defines the target architecture for `web3-opportunity-scout` as a 
 3. Preserve source traceability.
 4. Share one pipeline across pull and push modes.
 5. Treat state as a product feature.
+6. Pass artifacts source-by-source, not by whichever file was written last.
+7. Use premium APIs as enrichment tiers, not indiscriminate polling surfaces.
 
 ### System Overview
 
@@ -52,3 +54,11 @@ flowchart LR
 - `Memory + State`: deduplication, watchlists, delivery history
 - `Compact Context`: model-ready evidence packets
 - `Agent Judgment`: ranking, explanation, thesis
+
+### Source Strategy
+
+- `RootData` acts as broad project discovery and baseline project metadata.
+- `BlockBeats` acts as a faster-moving Chinese signal surface that benefits from aggressive second-pass filtering.
+- `DeFiLlama` acts as a free protocol/category discovery layer.
+- `GitHub` acts as a builder-shipping and repo-activity layer.
+- `Surf` acts as a premium enrichment layer and should be budgeted with query caps and lower cadence.

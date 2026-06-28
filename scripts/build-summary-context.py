@@ -11,6 +11,7 @@ from common import (
     infer_participation_angle,
     infer_validation_sources,
     latest_json_file,
+    latest_json_file_for_source,
     load_effective_yaml,
     output_dir_from_config,
     read_json_file,
@@ -23,6 +24,7 @@ from common import (
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Build compact summary context from scored opportunities.")
     parser.add_argument("--input", help="Optional path to scored JSON file")
+    parser.add_argument("--source-id", help="Resolve the latest scored artifact for this source when --input is omitted")
     parser.add_argument("--top", type=int, default=12, help="Number of projects to include in compact context")
     return parser.parse_args()
 
@@ -63,7 +65,12 @@ def main() -> int:
     state_dir = state_dir_from_config(config)
     ensure_dir(output_dir / "context")
 
-    input_path = ROOT / args.input if args.input else latest_json_file(output_dir / "scored")
+    if args.input:
+        input_path = ROOT / args.input
+    elif args.source_id:
+        input_path = latest_json_file_for_source(output_dir / "scored", args.source_id)
+    else:
+        input_path = latest_json_file(output_dir / "scored")
     scored_artifact = read_json_file(input_path, {})
     projects = scored_artifact.get("projects", [])
     watchlist = read_json_file(state_dir / "watchlist.json", {"projects": []})

@@ -13,6 +13,7 @@ from common import (
     default_watchlist,
     ensure_dir,
     latest_json_file,
+    latest_json_file_for_source,
     load_effective_yaml,
     output_dir_from_config,
     read_json_file,
@@ -25,6 +26,7 @@ from common import (
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Score merged opportunity projects and build ranked outputs.")
     parser.add_argument("--input", help="Optional path to merged JSON file")
+    parser.add_argument("--source-id", help="Resolve the latest merged artifact for this source when --input is omitted")
     parser.add_argument("--top", type=int, default=15, help="Top ranked projects to include in markdown output")
     return parser.parse_args()
 
@@ -183,7 +185,12 @@ def main() -> int:
     state_dir = state_dir_from_config(config)
     ensure_dir(output_dir / "scored")
 
-    input_path = ROOT / args.input if args.input else latest_json_file(output_dir / "merged")
+    if args.input:
+        input_path = ROOT / args.input
+    elif args.source_id:
+        input_path = latest_json_file_for_source(output_dir / "merged", args.source_id)
+    else:
+        input_path = latest_json_file(output_dir / "merged")
     merged_artifact = read_json_file(input_path, {})
     projects = merged_artifact.get("projects", [])
     memory = read_json_file(state_dir / "event-memory.json", default_event_memory())

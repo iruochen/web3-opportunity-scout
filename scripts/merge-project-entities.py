@@ -14,6 +14,7 @@ from common import (
     output_dir_from_config,
     read_json_file,
     state_dir_from_config,
+    latest_json_file_for_source,
     utc_now_iso,
     write_json_file,
     latest_json_file,
@@ -24,7 +25,7 @@ from common import (
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Merge normalized opportunity records into canonical project entities.")
     parser.add_argument("--input", help="Optional path to normalized JSON file")
-    parser.add_argument("--source-id", default="rootdata_projects", help="Source id to annotate during merge")
+    parser.add_argument("--source-id", help="Source id to annotate during merge and to resolve latest artifacts")
     return parser.parse_args()
 
 
@@ -141,12 +142,22 @@ def main() -> int:
     state_dir = state_dir_from_config(config)
     ensure_dir(output_dir / "merged")
 
+    resolved_source_id = args.source_id
     if args.input:
         input_path = ROOT / args.input
     else:
         filtered_dir = output_dir / "filtered"
-        input_path = latest_json_file(filtered_dir) if filtered_dir.exists() else latest_json_file(output_dir / "normalized")
+        if filtered_dir.exists() and resolved_source_id:
+            input_path = latest_json_file_for_source(filtered_dir, resolved_source_id)
+        elif filtered_dir.exists():
+            input_path = latest_json_file(filtered_dir)
+        elif resolved_source_id:
+            input_path = latest_json_file_for_source(output_dir / "normalized", resolved_source_id)
+        else:
+            input_path = latest_json_file(output_dir / "normalized")
     normalized_artifact = read_json_file(input_path, {})
+    if not resolved_source_id:
+        resolved_source_id = str(normalized_artifact.get("source_id", "unknown"))
     records = normalized_artifact.get("records", [])
 
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
@@ -156,7 +167,7 @@ def main() -> int:
         grouped[str(record.get("entity_key", record.get("id")))].append(record)
 
     merged_projects = [
-        merge_group(entity_key, group_records, args.source_id)
+        merge_group(entity_key, group_records, resolved_source_id)
         for entity_key, group_records in sorted(grouped.items())
     ]
 
@@ -164,7 +175,7 @@ def main() -> int:
     write_json_file(
         output_path,
         {
-            "source_id": args.source_id,
+            "source_id": resolved_source_id,
             "merged_at": utc_now_iso(),
             "input_normalized": str(input_path.relative_to(ROOT)),
             "project_count": len(merged_projects),
