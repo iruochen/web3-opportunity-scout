@@ -22,21 +22,22 @@ sources:
       enabled: false
       type: api
       category: discovery
-      label: RootData project discovery
+      label: RootData hot projects
       cadence: daily
-      notes: Requires ROOTDATA_API_KEY. Fill in the correct endpoint and request shape for your RootData plan before enabling.
+      notes: Requires ROOTDATA_API_KEY. Uses the RootData hot_index endpoint as an initial discovery source.
       auth:
         kind: bearer
         env: ROOTDATA_API_KEY
         header: Authorization
       request:
         base_url: https://api.rootdata.com
-        path: /replace-with-rootdata-endpoint
-        method: GET
+        path: /open/skill/hot_index
+        method: POST
         headers:
           Accept: application/json
-        query:
-          limit: 20
+          language: en
+        body:
+          days: 1
     - id: github_trending_builders
       enabled: true
       type: github_search

@@ -29,6 +29,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Fetch RootData payloads into raw cache.")
     parser.add_argument("--source-id", default="rootdata_projects", help="Source id in sources.yaml")
     parser.add_argument("--limit", type=int, default=None, help="Override request limit")
+    parser.add_argument("--days", type=int, default=None, help="Override request days window when supported")
     parser.add_argument("--dry-run", action="store_true", help="Print resolved request without calling the API")
     parser.add_argument("--force", action="store_true", help="Ignore cached-state hints and fetch anyway")
     parser.add_argument("--base-url", help="Override request base URL")
@@ -36,7 +37,13 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def build_request_config(source_def: dict[str, Any], limit: int | None, base_url: str | None, path: str | None) -> dict[str, Any]:
+def build_request_config(
+    source_def: dict[str, Any],
+    limit: int | None,
+    days: int | None,
+    base_url: str | None,
+    path: str | None,
+) -> dict[str, Any]:
     request_cfg = dict(source_def.get("request", {}))
     headers = dict(request_cfg.get("headers", {}))
     body = dict(request_cfg.get("body", {}))
@@ -45,6 +52,9 @@ def build_request_config(source_def: dict[str, Any], limit: int | None, base_url
     if limit is not None:
         body["limit"] = limit
         query["limit"] = limit
+    if days is not None:
+        body["days"] = days
+        query["days"] = days
 
     request_cfg["base_url"] = base_url or request_cfg.get("base_url", "")
     request_cfg["path"] = path or request_cfg.get("path", "")
@@ -122,6 +132,7 @@ def update_run_state(
     url: str,
     cache_path: Path | None,
     error: str | None,
+    record_count: int | None,
 ) -> None:
     run_state_path = ROOT / state_dir_name / "run-state.json"
     run_state = read_json_file(run_state_path, default_run_state())
@@ -133,6 +144,7 @@ def update_run_state(
     source_state["last_request_url"] = url
     source_state["last_cache_path"] = str(cache_path.relative_to(ROOT)) if cache_path else None
     source_state["last_error"] = error
+    source_state["last_record_count"] = record_count
 
     run_state.setdefault("sources", {})[source_id] = source_state
     write_json_file(run_state_path, run_state)
@@ -147,7 +159,7 @@ def main() -> int:
     profile = config.get("profile", {})
     cache_dir_name = str(profile.get("cache_dir", "cache"))
     state_dir_name = str(profile.get("state_dir", "state"))
-    request_cfg = build_request_config(source_def, args.limit, args.base_url, args.path)
+    request_cfg = build_request_config(source_def, args.limit, args.days, args.base_url, args.path)
     url = build_url(request_cfg)
     headers, auth_env = inject_auth(request_cfg.get("headers", {}), source_def, args.dry_run)
 
@@ -160,6 +172,7 @@ def main() -> int:
         print(f"Auth env: {auth_env}")
 
     if args.dry_run:
+        print(f"Request body: {json.dumps(request_cfg.get('body', {}), ensure_ascii=False)}")
         print("Dry run only. No network call executed.")
         return 0
 
@@ -169,18 +182,20 @@ def main() -> int:
     try:
         status_code, payload = perform_request(url, request_cfg["method"], headers, request_cfg.get("body", {}))
     except HTTPError as exc:
-        update_run_state(state_dir_name, args.source_id, "failed", url, None, f"HTTP {exc.code}: {exc.reason}")
+        update_run_state(state_dir_name, args.source_id, "failed", url, None, f"HTTP {exc.code}: {exc.reason}", None)
         print(f"FAIL  HTTP error: {exc.code} {exc.reason}")
         return 1
     except URLError as exc:
-        update_run_state(state_dir_name, args.source_id, "failed", url, None, str(exc.reason))
+        update_run_state(state_dir_name, args.source_id, "failed", url, None, str(exc.reason), None)
         print(f"FAIL  Network error: {exc.reason}")
         return 1
     except Exception as exc:
-        update_run_state(state_dir_name, args.source_id, "failed", url, None, str(exc))
+        update_run_state(state_dir_name, args.source_id, "failed", url, None, str(exc), None)
         print(f"FAIL  Unexpected error: {exc}")
         return 1
 
+    records = payload.get("data", []) if isinstance(payload, dict) else []
+    record_count = len(records) if isinstance(records, list) else None
     artifact = {
         "source_id": args.source_id,
         "fetched_at": utc_now_iso(),
@@ -196,9 +211,11 @@ def main() -> int:
         },
     }
     write_json_file(cache_path, artifact)
-    update_run_state(state_dir_name, args.source_id, "success", url, cache_path, None)
+    update_run_state(state_dir_name, args.source_id, "success", url, cache_path, None, record_count)
 
     print(f"PASS  Cached RootData payload: {cache_path.relative_to(ROOT)}")
+    if record_count is not None:
+        print(f"PASS  RootData records fetched: {record_count}")
     return 0
 
 
