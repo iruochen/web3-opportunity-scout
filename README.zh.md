@@ -29,7 +29,6 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-export ROOTDATA_API_KEY=your_key_here
 python scripts/cli.py doctor
 python scripts/cli.py init
 python scripts/cli.py run
@@ -42,6 +41,7 @@ make venv
 make install
 make doctor
 make pipeline
+make test
 ```
 
 执行后会生成：
@@ -59,6 +59,7 @@ make pipeline
 - `sources.yaml` 控制启用哪些 source 以及每个 source 的请求配置
 - API key 等 secret 通过环境变量提供，不写入仓库
 - `.env.example` 展示了本地运行时需要配置的环境变量名称
+- 当 `.env` 存在时，`scripts/cli.py` 会自动加载其中的环境变量
 
 ## 用户输出
 
