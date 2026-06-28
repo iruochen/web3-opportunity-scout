@@ -9,8 +9,9 @@
 - 跨 run 的状态记忆与去重
 - 按 source 扩展的数据接入
 
-当前实现重点：
+它的核心价值不是一次性摘要，而是一条可持续运行的流程：
 
-- 项目级 Python 虚拟环境
-- 状态初始化与 run-state 跟踪
-- 通过 RootData 打通第一个真实数据源
+- 收集原始信号
+- 规范化成统一项目记录
+- 对高信号机会进行排序
+- 持续维护 memory、watchlist 和 delivery history

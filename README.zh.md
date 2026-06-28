@@ -1,8 +1,20 @@
 # web3-opportunity-scout
 
-`web3-opportunity-scout` 是一个面向生产环境的 Web3 早期机会发现 skill 骨架，目标不是一次性资讯摘要，而是可重复运行、可恢复、可扩展的数据流水线。
+`web3-opportunity-scout` 是一个面向生产环境的 Web3 早期机会发现 skill，用来从可配置的数据源中稳定产出高价值项目机会线索。
 
-核心思路是：先对噪音来源做确定性抓取和规范化，再压缩成 compact context，最后才交给 agent 做排序、解释和 thesis 生成。
+项目围绕一条可重复运行的流水线构建：
+
+- 抓取来源数据
+- 缓存原始 payload
+- 规范化项目记录
+- 合并重复实体
+- 机会评分
+- 输出排序结果和 watchlist
+
+它同时服务于：
+
+- 对话式查询
+- 定时机会推送
 
 相关文档：
 
@@ -18,18 +30,27 @@ source .venv/bin/activate
 pip install -r requirements.txt
 python scripts/doctor.py
 python scripts/init.py
-python scripts/check-run-state.py
-python scripts/fetch-rootdata.py --dry-run
+python scripts/run-pipeline.py
 ```
 
-## 当前范围
+执行后会生成：
 
-当前仓库已经包含：
+- `cache/` 下的原始缓存
+- `output/` 下的 normalized / merged / scored 产物
+- 排序后的 Markdown 机会清单
+- `state/` 下的 watchlist 和 run-state
 
-- skill 骨架和配置模板
-- 中英文架构文档
-- 项目级 Python 虚拟环境方案
-- 状态初始化与检查脚本
-- RootData 抓取器骨架
+## 配置
 
-下一阶段最重要的是在拿到真实 API key 和 endpoint 配置后，先把 RootData 这一个 source 真实跑通，然后继续补 normalize 和 ranking 流水线。
+- `config.yaml` 控制关注链、赛道、评分阈值和状态目录
+- `sources.yaml` 控制启用哪些 source 以及每个 source 的请求配置
+- API key 等 secret 通过环境变量提供，不写入仓库
+
+## 用户输出
+
+主要用户可读产物包括：
+
+- `output/ranked-opportunities.md`
+- `output/raw-opportunities.md`
+- `state/watchlist.json`
+- `state/project-dossiers.json`

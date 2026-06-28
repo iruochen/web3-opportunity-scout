@@ -9,8 +9,9 @@ It is designed to support:
 - stateful deduplication across runs
 - source-by-source extensibility
 
-Current implementation focus:
+Its core value is a durable workflow rather than one-off summarization:
 
-- project-local Python environment
-- state bootstrap and run-state tracking
-- first live source integration through RootData
+- collect raw signals
+- normalize them into shared project records
+- rank high-signal opportunities
+- preserve memory, watchlists, and delivery history
