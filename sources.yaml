@@ -1,0 +1,52 @@
+sources:
+  official:
+    - id: official_blog_rss
+      enabled: true
+      type: rss
+      category: official
+      label: Official project blogs
+      cadence: daily
+      notes: Use for launch posts, release notes, partnership announcements, and product milestones.
+
+  social:
+    - id: curated_twitter_list
+      enabled: false
+      type: social_feed
+      category: social
+      label: Curated builder and researcher list
+      cadence: daily
+      notes: Prefer accounts that post build progress, launch threads, and ecosystem discoveries.
+
+  discovery:
+    - id: github_trending_builders
+      enabled: true
+      type: github_search
+      category: discovery
+      label: GitHub repos and contributors
+      cadence: daily
+      notes: Useful for spotting active repos, fast star growth, and shipping velocity.
+    - id: defillama_new_protocols
+      enabled: true
+      type: api
+      category: discovery
+      label: DeFiLlama listings
+      cadence: daily
+      notes: Good for emerging protocols and category tagging.
+
+  builder:
+    - id: hackathon_results
+      enabled: true
+      type: webpage
+      category: builder
+      label: Hackathons and demo days
+      cadence: weekly
+      notes: Good source for early teams before broad market awareness.
+
+  market:
+    - id: funding_signals
+      enabled: true
+      type: api
+      category: market
+      label: Funding and investor signal feeds
+      cadence: daily
+      notes: Funding alone is not enough; combine with shipping or builder evidence.

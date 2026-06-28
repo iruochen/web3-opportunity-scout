@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Local environment
+.env
+.env.*
+
+# Local overrides
+config.local.yaml
+sources.local.yaml
+
+# Runtime artifacts
+cache/*
+!cache/.gitkeep
+output/*
+!output/.gitkeep
+output/briefs/
+state/*
+!state/.gitkeep
+
+# OS files
+.DS_Store

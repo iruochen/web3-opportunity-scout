@@ -1,0 +1,45 @@
+# Local working config for this repository.
+# Adjust values to match your preferred ecosystems and risk profile.
+
+profile:
+  name: local-default
+  timezone: Asia/Shanghai
+  output_dir: output
+  cache_dir: cache
+  state_dir: state
+
+focus:
+  chains:
+    - Solana
+    - Base
+    - Ethereum
+  sectors:
+    - infra
+    - AI x crypto
+    - DePIN
+    - consumer
+    - devtools
+  geographies:
+    - global
+
+risk:
+  profile: balanced
+  min_confidence: 0.55
+  min_opportunity_score: 65
+
+memory:
+  dedupe_window_days: 21
+  novelty_window_days: 14
+  max_watchlist_size: 150
+
+run:
+  mode: resume
+  skip_unavailable_sources: true
+  fail_on_schema_error: false
+  max_projects_per_run: 50
+  save_compact_context: true
+
+reporting:
+  include_rejected_candidates: false
+  include_source_trace: true
+  include_score_breakdown: true
