@@ -21,6 +21,7 @@ Key docs:
 - Architecture index: [references/architecture.md](/Users/ruochen/CodexProjects/web3-opportunity-scout/references/architecture.md:1)
 - English architecture: [references/architecture.en.md](/Users/ruochen/CodexProjects/web3-opportunity-scout/references/architecture.en.md:1)
 - Runtime contracts: [references/contracts.en.md](/Users/ruochen/CodexProjects/web3-opportunity-scout/references/contracts.en.md:1)
+- Source onboarding: [references/source-onboarding.en.md](/Users/ruochen/CodexProjects/web3-opportunity-scout/references/source-onboarding.en.md:1)
 
 ## Quick Start
 

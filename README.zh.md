@@ -21,6 +21,7 @@
 - 架构导航: [references/architecture.md](/Users/ruochen/CodexProjects/web3-opportunity-scout/references/architecture.md:1)
 - 中文架构文档: [references/architecture.zh.md](/Users/ruochen/CodexProjects/web3-opportunity-scout/references/architecture.zh.md:1)
 - 运行时 contract: [references/contracts.zh.md](/Users/ruochen/CodexProjects/web3-opportunity-scout/references/contracts.zh.md:1)
+- Source 接入指南: [references/source-onboarding.zh.md](/Users/ruochen/CodexProjects/web3-opportunity-scout/references/source-onboarding.zh.md:1)
 
 ## 快速开始
 

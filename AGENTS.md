@@ -22,6 +22,7 @@ Build `web3-opportunity-scout` as a production-grade, multi-source Web3 opportun
    - add a source entry in `sources.yaml`
    - add a source-specific fetch adapter
    - add a source-specific normalizer or mapping rule
+   - follow the adapter onboarding guide in `references/source-onboarding.*.md`
 
 3. Never store secrets in tracked files.
    API keys, tokens, cookies, and credentials must come from environment variables or local untracked overrides.
