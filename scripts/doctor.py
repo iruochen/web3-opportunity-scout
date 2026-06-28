@@ -31,11 +31,16 @@ def check_paths() -> list[CheckResult]:
         ROOT / "README.md",
         ROOT / "config.example.yaml",
         ROOT / "sources.example.yaml",
+        ROOT / "requirements.txt",
         ROOT / "references" / "init-flow.md",
         ROOT / "references" / "scoring-rules.example.md",
         ROOT / "prompts" / "summary-template.md",
         ROOT / "prompts" / "project-thesis-template.md",
+        ROOT / "scripts" / "common.py",
         ROOT / "scripts" / "doctor.py",
+        ROOT / "scripts" / "init.py",
+        ROOT / "scripts" / "check-run-state.py",
+        ROOT / "scripts" / "fetch-rootdata.py",
     ]
 
     recommended_dirs = [

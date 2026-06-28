@@ -18,6 +18,25 @@ sources:
       notes: Prefer accounts that post build progress, launch threads, and ecosystem discoveries.
 
   discovery:
+    - id: rootdata_projects
+      enabled: false
+      type: api
+      category: discovery
+      label: RootData project discovery
+      cadence: daily
+      notes: Requires ROOTDATA_API_KEY. Fill in the correct endpoint and request shape for your RootData plan before enabling.
+      auth:
+        kind: bearer
+        env: ROOTDATA_API_KEY
+        header: Authorization
+      request:
+        base_url: https://api.rootdata.com
+        path: /replace-with-rootdata-endpoint
+        method: GET
+        headers:
+          Accept: application/json
+        query:
+          limit: 20
     - id: github_trending_builders
       enabled: true
       type: github_search
