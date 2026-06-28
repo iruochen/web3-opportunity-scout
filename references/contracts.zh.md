@@ -33,6 +33,7 @@ status
 - source 级抓取状态
 - stage checkpoint
 - 最近一次成功产物的位置
+- active run 的生命周期
 
 当前 bootstrap 结构：
 
@@ -46,6 +47,17 @@ status
   "sources": {}
 }
 ```
+
+当前 pipeline run 至少应该记录这些字段：
+
+- `run_id`
+- `status`
+- `source_id`
+- `started_at`
+- `finished_at`
+- `current_stage`
+- `completed_stages`
+- `error`
 
 ## Memory Objects
 

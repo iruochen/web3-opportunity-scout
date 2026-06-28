@@ -33,6 +33,7 @@ status
 - source-level fetch status
 - stage checkpoints
 - last successful outputs
+- active run lifecycle
 
 Current bootstrap shape:
 
@@ -46,6 +47,17 @@ Current bootstrap shape:
   "sources": {}
 }
 ```
+
+Current pipeline runs should record fields such as:
+
+- `run_id`
+- `status`
+- `source_id`
+- `started_at`
+- `finished_at`
+- `current_stage`
+- `completed_stages`
+- `error`
 
 ## Memory Objects
 
