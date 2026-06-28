@@ -38,6 +38,8 @@ python scripts/run-pipeline.py
 - `cache/` 下的原始缓存
 - `output/` 下的 normalized / merged / scored 产物
 - 排序后的 Markdown 机会清单
+- 中英文机会简报
+- 项目级 thesis 文件
 - `state/` 下的 watchlist 和 run-state
 
 ## 配置
@@ -52,5 +54,8 @@ python scripts/run-pipeline.py
 
 - `output/ranked-opportunities.md`
 - `output/raw-opportunities.md`
+- `output/briefs/latest-brief.en.md`
+- `output/briefs/latest-brief.zh.md`
+- `output/project-theses/`
 - `state/watchlist.json`
 - `state/project-dossiers.json`

@@ -38,6 +38,8 @@ This creates:
 - raw cache files under `cache/`
 - normalized, merged, and scored artifacts under `output/`
 - ranked markdown summaries
+- bilingual opportunity briefs
+- per-project thesis files
 - watchlist and run-state updates under `state/`
 
 ## Config
@@ -52,5 +54,8 @@ Main user-facing outputs:
 
 - `output/ranked-opportunities.md`
 - `output/raw-opportunities.md`
+- `output/briefs/latest-brief.en.md`
+- `output/briefs/latest-brief.zh.md`
+- `output/project-theses/`
 - `state/watchlist.json`
 - `state/project-dossiers.json`
