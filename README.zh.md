@@ -28,9 +28,20 @@
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-python scripts/doctor.py
-python scripts/init.py
-python scripts/run-pipeline.py
+cp .env.example .env
+export ROOTDATA_API_KEY=your_key_here
+python scripts/cli.py doctor
+python scripts/cli.py init
+python scripts/cli.py run
+```
+
+也可以直接使用仓库自带的 `Makefile`：
+
+```bash
+make venv
+make install
+make doctor
+make pipeline
 ```
 
 执行后会生成：
@@ -47,6 +58,7 @@ python scripts/run-pipeline.py
 - `config.yaml` 控制关注链、赛道、评分阈值和状态目录
 - `sources.yaml` 控制启用哪些 source 以及每个 source 的请求配置
 - API key 等 secret 通过环境变量提供，不写入仓库
+- `.env.example` 展示了本地运行时需要配置的环境变量名称
 
 ## 用户输出
 

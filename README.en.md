@@ -28,9 +28,20 @@ Key docs:
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-python scripts/doctor.py
-python scripts/init.py
-python scripts/run-pipeline.py
+cp .env.example .env
+export ROOTDATA_API_KEY=your_key_here
+python scripts/cli.py doctor
+python scripts/cli.py init
+python scripts/cli.py run
+```
+
+Or use the bundled `Makefile`:
+
+```bash
+make venv
+make install
+make doctor
+make pipeline
 ```
 
 This creates:
@@ -47,6 +58,7 @@ This creates:
 - `config.yaml` controls focus chains, sectors, scoring thresholds, and state directories
 - `sources.yaml` controls enabled sources and source-specific request settings
 - secrets such as API keys should be provided through environment variables
+- `.env.example` shows the expected variable names for local setup
 
 ## Output
 
