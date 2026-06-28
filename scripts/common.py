@@ -190,7 +190,7 @@ def resolve_reporting_formats(config: dict[str, Any]) -> list[str]:
 
 
 def latest_json_file(path: Path) -> Path:
-    candidates = sorted(path.rglob("*.json"))
+    candidates = sorted(path.rglob("*.json"), key=lambda item: (item.stat().st_mtime, str(item)))
     if not candidates:
         raise FileNotFoundError(f"No JSON files found under {path}")
     return candidates[-1]

@@ -141,7 +141,11 @@ def main() -> int:
     state_dir = state_dir_from_config(config)
     ensure_dir(output_dir / "merged")
 
-    input_path = ROOT / args.input if args.input else latest_json_file(output_dir / "normalized")
+    if args.input:
+        input_path = ROOT / args.input
+    else:
+        filtered_dir = output_dir / "filtered"
+        input_path = latest_json_file(filtered_dir) if filtered_dir.exists() else latest_json_file(output_dir / "normalized")
     normalized_artifact = read_json_file(input_path, {})
     records = normalized_artifact.get("records", [])
 

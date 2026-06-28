@@ -9,6 +9,7 @@ The current repository already supports a full single-source MVP around RootData
 - fetch source data
 - cache raw payloads
 - normalize project records
+- filter records by stream profile
 - merge repeated entities
 - score opportunities
 - build ranked outputs, briefs, theses, dossiers, and state updates
@@ -91,6 +92,7 @@ web3-opportunity-scout/
 │   ├── run-pipeline.py       # orchestrates end-to-end pipeline
 │   ├── fetch-*.py            # source fetch adapters
 │   ├── normalize-*.py        # source normalizers
+│   ├── filter-candidates.py  # profile-based post-normalize filtering
 │   ├── merge-project-entities.py
 │   ├── score-opportunities.py
 │   ├── build-*.py            # summaries, briefs, dossiers
@@ -114,6 +116,8 @@ web3-opportunity-scout/
 - `config.yaml` controls focus chains, sectors, scoring thresholds, and directories.
 - `sources.yaml` controls source enablement and request settings.
 - Each source can declare an `adapter` that maps to `fetch-<adapter>.py` and `normalize-<adapter>.py`.
+- `filters.active_profile` chooses the current stream, such as `opportunity` or `market`.
+- Sources can define `filter_profiles.<profile>` overrides for source-specific second-pass filtering.
 - `.env` is loaded automatically by the CLI when present.
 - Empty `focus.chains` and `focus.sectors` mean market-wide scanning by default.
 - `reporting.locale` supports `auto`, `en`, `zh`, and `bilingual`.

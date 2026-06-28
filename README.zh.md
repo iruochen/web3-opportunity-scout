@@ -9,6 +9,7 @@
 - 抓取来源数据
 - 缓存原始 payload
 - 规范化项目记录
+- 按 stream profile 做二次筛选
 - 合并重复实体
 - 机会评分
 - 产出排序结果、brief、thesis、dossier 和状态更新
@@ -92,6 +93,7 @@ web3-opportunity-scout/
 │   ├── run-pipeline.py       # 串起完整流水线
 │   ├── fetch-*.py            # source 抓取适配器
 │   ├── normalize-*.py        # source 规范化适配器
+│   ├── filter-candidates.py  # 基于 profile 的二次筛选
 │   ├── merge-project-entities.py
 │   ├── score-opportunities.py
 │   ├── build-*.py            # summary / brief / dossier 产出
@@ -115,6 +117,8 @@ web3-opportunity-scout/
 - `config.yaml` 控制关注链、赛道、评分阈值和目录位置。
 - `sources.yaml` 控制 source 启用状态和请求配置。
 - 每个 source 都可以声明一个 `adapter`，映射到 `fetch-<adapter>.py` 和 `normalize-<adapter>.py`。
+- `filters.active_profile` 用来选择当前跑的是哪种 stream，例如 `opportunity` 或 `market`。
+- source 可以通过 `filter_profiles.<profile>` 定义自己专属的二次筛选规则。
 - 当 `.env` 存在时，CLI 会自动加载其中的环境变量。
 - 当 `focus.chains` 和 `focus.sectors` 为空时，默认执行全市场扫描。
 - `reporting.locale` 支持 `auto`、`en`、`zh`、`bilingual`。

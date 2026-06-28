@@ -5,6 +5,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+import time
 
 ROOT = Path(__file__).resolve().parent.parent
 SCRIPTS_DIR = ROOT / "scripts"
@@ -21,6 +22,7 @@ from scripts.common import (
     load_run_state,
     start_pipeline_run,
     update_pipeline_stage,
+    latest_json_file,
 )
 
 
@@ -77,6 +79,18 @@ class RunStateTests(unittest.TestCase):
             self.assertEqual(len(run_state["runs"]), 1)
             self.assertEqual(run_state["runs"][0]["status"], "completed")
             self.assertIn("normalize", run_state["runs"][0]["completed_stages"])
+
+
+class FileSelectionTests(unittest.TestCase):
+    def test_latest_json_file_prefers_newest_mtime(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            older = root / "z-old.json"
+            newer = root / "a-new.json"
+            older.write_text("{}", encoding="utf-8")
+            time.sleep(0.01)
+            newer.write_text("{}", encoding="utf-8")
+            self.assertEqual(latest_json_file(root), newer)
 
 
 if __name__ == "__main__":

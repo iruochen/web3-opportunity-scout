@@ -41,6 +41,12 @@ Optional request fields:
 - `request.query`
 - `request.body`
 
+Optional filtering fields:
+
+- `filter_profiles.<profile>.include_any_tags`
+- `filter_profiles.<profile>.exclude_title_keywords`
+- `filter_profiles.<profile>.exclude_summary_keywords`
+
 ### Adapter Naming
 
 If the adapter is `opennews`, create:

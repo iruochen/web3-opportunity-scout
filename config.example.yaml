@@ -31,6 +31,20 @@ run:
   max_projects_per_run: 50
   save_compact_context: true
 
+filters:
+  active_profile: opportunity
+  profiles:
+    opportunity:
+      min_confidence: 0.0
+      include_any_tags: []
+      exclude_title_keywords: []
+      exclude_summary_keywords: []
+    market:
+      min_confidence: 0.0
+      include_any_tags: []
+      exclude_title_keywords: []
+      exclude_summary_keywords: []
+
 reporting:
   locale: auto
   primary_format: html

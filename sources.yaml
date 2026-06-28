@@ -55,6 +55,20 @@ sources:
       label: BlockBeats original newsflash
       cadence: hourly
       notes: Requires BLOCKBEATS_API_KEY. Uses BlockBeats original newsflash as a fast-moving discovery surface.
+      filter_profiles:
+        opportunity:
+          exclude_title_keywords:
+            - ETF
+            - 美股
+            - 韩股
+            - 盘前
+            - 期权
+            - 净流入
+          exclude_summary_keywords:
+            - 美股
+            - 韩股
+            - ETF
+            - 盘前
       auth:
         kind: header
         env: BLOCKBEATS_API_KEY
@@ -67,7 +81,7 @@ sources:
           Accept: application/json
         query:
           page: 1
-          size: 20
+          size: 10
           lang: cn
     - id: github_trending_builders
       enabled: true

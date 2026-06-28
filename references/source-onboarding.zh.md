@@ -41,6 +41,12 @@
 - `request.query`
 - `request.body`
 
+可选筛选字段：
+
+- `filter_profiles.<profile>.include_any_tags`
+- `filter_profiles.<profile>.exclude_title_keywords`
+- `filter_profiles.<profile>.exclude_summary_keywords`
+
 ### Adapter 命名规则
 
 如果 adapter 是 `opennews`，应创建：

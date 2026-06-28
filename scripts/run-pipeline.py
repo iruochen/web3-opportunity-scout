@@ -62,6 +62,10 @@ def main() -> int:
         run_step([f"scripts/normalize-{adapter}.py", "--source-id", args.source])
         update_pipeline_stage(state_dir, run_id, "normalize", completed=True)
 
+        update_pipeline_stage(state_dir, run_id, "filter")
+        run_step(["scripts/filter-candidates.py"])
+        update_pipeline_stage(state_dir, run_id, "filter", completed=True)
+
         update_pipeline_stage(state_dir, run_id, "merge")
         run_step(["scripts/merge-project-entities.py"])
         update_pipeline_stage(state_dir, run_id, "merge", completed=True)
