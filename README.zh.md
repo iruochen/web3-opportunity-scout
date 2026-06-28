@@ -57,5 +57,6 @@ python scripts/run-pipeline.py
 - `output/briefs/latest-brief.en.md`
 - `output/briefs/latest-brief.zh.md`
 - `output/project-theses/`
+- `output/project-dossiers.json`
 - `state/watchlist.json`
 - `state/project-dossiers.json`
