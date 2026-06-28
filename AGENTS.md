@@ -50,12 +50,15 @@ Build `web3-opportunity-scout` as a production-grade, multi-source Web3 opportun
 ## Documentation Rules
 
 - Keep short docs in both English and Chinese when they are user-facing.
-- Prefer single-file bilingual docs with anchor-based switching when practical.
+- Prefer English primary docs plus parallel `*.zh.md` Chinese docs for public-facing files.
 - Use relative Markdown links so docs stay portable on GitHub.
 - Prefer:
   - `README.md`
+  - `README.zh.md`
   - `docs/*.md`
+  - `docs/*.zh.md`
   - `references/*.md`
+  - `references/*.zh.md`
 
 ## Code Organization Rules
 

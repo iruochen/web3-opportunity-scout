@@ -1,10 +1,10 @@
 # Runtime Contracts
 
-[中文](contracts.zh.md)
+[English](contracts.md)
 
 ### Opportunity Record
 
-Suggested fields:
+建议字段：
 
 ```text
 id
@@ -27,15 +27,15 @@ status
 
 ### Run State
 
-`state/run-state.json` should track:
+`state/run-state.json` 建议至少记录：
 
-- run metadata
-- source-level fetch status
-- stage checkpoints
-- last successful outputs
-- active run lifecycle
+- run 级元数据
+- source 级抓取状态
+- stage checkpoint
+- 最近一次成功产物的位置
+- active run 的生命周期
 
-Current bootstrap shape:
+当前 bootstrap 结构：
 
 ```json
 {
@@ -48,7 +48,7 @@ Current bootstrap shape:
 }
 ```
 
-Current pipeline runs should record fields such as:
+当前 pipeline run 至少应该记录这些字段：
 
 - `run_id`
 - `status`
