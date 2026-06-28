@@ -119,8 +119,18 @@ web3-opportunity-scout/
 - `sources.yaml` controls source enablement and request settings.
 - Each source can declare an `adapter` that maps to `fetch-<adapter>.py` and `normalize-<adapter>.py`.
 - `.env` is loaded automatically by the CLI when present.
+- Empty `focus.chains` and `focus.sectors` mean market-wide scanning by default.
 - `reporting.locale` supports `auto`, `en`, `zh`, and `bilingual`.
 - `reporting.generate_formats` supports `html` and `md`. The recommended push artifact is `output/briefs/latest-brief.html`.
+
+### Hermes / OpenClaw
+
+- This repository should focus on producing stable artifacts, not owning delivery infrastructure.
+- When hosted by Hermes or OpenClaw, let the host scheduler trigger `python scripts/cli.py run --source <source_id>`.
+- Let the host read `output/briefs/latest-brief.html` for rich push surfaces, or `output/briefs/latest-brief.md` for plain-text / markdown channels.
+- Use `reporting.locale` to choose `auto`, `en`, `zh`, or `bilingual` at artifact generation time.
+
+More detail: [references/host-integration.md#english](references/host-integration.md#english)
 
 ### Publishing Notes
 
@@ -247,8 +257,18 @@ web3-opportunity-scout/
 - `sources.yaml` 控制 source 启用状态和请求配置。
 - 每个 source 都可以声明一个 `adapter`，映射到 `fetch-<adapter>.py` 和 `normalize-<adapter>.py`。
 - 当 `.env` 存在时，CLI 会自动加载其中的环境变量。
+- 当 `focus.chains` 和 `focus.sectors` 为空时，默认执行全市场扫描。
 - `reporting.locale` 支持 `auto`、`en`、`zh`、`bilingual`。
 - `reporting.generate_formats` 支持 `html` 和 `md`，其中推荐用于推送展示的是 `output/briefs/latest-brief.html`。
+
+### Hermes / OpenClaw 集成
+
+- 这个仓库当前更适合专注在“稳定产出内容”，而不是自己实现推送基础设施。
+- 如果由 Hermes 或 OpenClaw 托管，建议由宿主的调度器触发 `python scripts/cli.py run --source <source_id>`。
+- 宿主侧读取 `output/briefs/latest-brief.html` 作为富展示推送产物，或者读取 `output/briefs/latest-brief.md` 作为纯文本 / Markdown 推送产物。
+- 最终产物语言通过 `reporting.locale` 控制，可选 `auto`、`en`、`zh`、`bilingual`。
+
+更多说明见: [references/host-integration.md#zh](references/host-integration.md#zh)
 
 ### 发布说明
 

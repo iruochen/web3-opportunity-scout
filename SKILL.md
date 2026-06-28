@@ -7,13 +7,14 @@ Production-oriented skill for discovering early, high-signal Web3 project opport
 Use this skill when the user asks to:
 
 - find early Web3 projects worth tracking today or this week
-- refresh opportunities in a specific ecosystem such as Solana, Base, Ethereum, or modular infra
-- surface under-the-radar infra, AI x crypto, DePIN, consumer crypto, or developer tooling projects
+- refresh opportunities across the market without being limited to one chain or sector
+- surface under-the-radar projects in a specific ecosystem, narrative, or builder segment when the user asks for it
 - update an existing watchlist with new signals instead of generating generic market commentary
 
 Example triggers:
 
 - "Find Web3 projects worth following today"
+- "Scan the market for early Web3 opportunities"
 - "Refresh Solana ecosystem opportunities"
 - "Find new infra or AI x crypto projects from this week"
 - "Update the watchlist with new early-stage builder signals"
@@ -76,7 +77,7 @@ If outputs disagree across stages, prefer re-running the inconsistent downstream
 
 Ask the user only when the decision materially changes output quality or cost, for example:
 
-- no chain or sector preference is configured and the search space is too broad
+- source scope should be narrowed because runtime or source costs are unusually high
 - a source requires credentials or manual setup
 - the user needs a different risk profile such as conservative versus experimental
 

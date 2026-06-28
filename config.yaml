@@ -9,16 +9,8 @@ profile:
   state_dir: state
 
 focus:
-  chains:
-    - Solana
-    - Base
-    - Ethereum
-  sectors:
-    - infra
-    - AI x crypto
-    - DePIN
-    - consumer
-    - devtools
+  chains: []
+  sectors: []
   geographies:
     - global
 

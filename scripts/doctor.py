@@ -36,6 +36,7 @@ def check_paths() -> list[CheckResult]:
         ROOT / "references" / "scoring-rules.example.md",
         ROOT / "references" / "architecture.md",
         ROOT / "references" / "contracts.md",
+        ROOT / "references" / "host-integration.md",
         ROOT / "references" / "source-onboarding.md",
         ROOT / "docs" / "brief.md",
         ROOT / "prompts" / "summary-template.md",
