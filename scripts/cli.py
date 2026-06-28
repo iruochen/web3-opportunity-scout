@@ -7,7 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from common import enabled_source_entries, load_dotenv_file, load_effective_yaml
+from common import enabled_source_entries, find_source_definition, load_dotenv_file, load_effective_yaml, resolve_source_adapter
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -75,7 +75,10 @@ def main() -> int:
         return 0
     if args.command in {"fetch-rootdata", "fetch"}:
         source_id = "rootdata_projects" if args.command == "fetch-rootdata" else args.source
-        command = ["scripts/fetch-rootdata.py", "--source-id", source_id, "--days", str(args.days)]
+        sources_config, _ = load_effective_yaml("sources.yaml", "sources.example.yaml")
+        _, source_def = find_source_definition(sources_config, source_id)
+        adapter = resolve_source_adapter(source_id, source_def)
+        command = [f"scripts/fetch-{adapter}.py", "--source-id", source_id, "--days", str(args.days)]
         if args.limit is not None:
             command.extend(["--limit", str(args.limit)])
         if args.dry_run:
