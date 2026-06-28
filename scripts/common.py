@@ -81,6 +81,36 @@ def slugify(value: str) -> str:
     return normalized.strip("-").lower() or "default"
 
 
+def load_profile_config(config: dict[str, Any]) -> dict[str, Any]:
+    profile = config.get("profile", {})
+    if not isinstance(profile, dict):
+        return {}
+    return profile
+
+
+def state_dir_from_config(config: dict[str, Any]) -> Path:
+    return ROOT / str(load_profile_config(config).get("state_dir", "state"))
+
+
+def cache_dir_from_config(config: dict[str, Any]) -> Path:
+    return ROOT / str(load_profile_config(config).get("cache_dir", "cache"))
+
+
+def output_dir_from_config(config: dict[str, Any]) -> Path:
+    return ROOT / str(load_profile_config(config).get("output_dir", "output"))
+
+
+def latest_json_file(path: Path) -> Path:
+    candidates = sorted(path.rglob("*.json"))
+    if not candidates:
+        raise FileNotFoundError(f"No JSON files found under {path}")
+    return candidates[-1]
+
+
+def clamp(value: float, minimum: float, maximum: float) -> float:
+    return max(minimum, min(maximum, value))
+
+
 def default_run_state() -> dict[str, Any]:
     return {
         "version": 1,

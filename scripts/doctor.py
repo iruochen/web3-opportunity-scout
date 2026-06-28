@@ -42,6 +42,9 @@ def check_paths() -> list[CheckResult]:
         ROOT / "scripts" / "check-run-state.py",
         ROOT / "scripts" / "fetch-rootdata.py",
         ROOT / "scripts" / "normalize-rootdata.py",
+        ROOT / "scripts" / "merge-project-entities.py",
+        ROOT / "scripts" / "score-opportunities.py",
+        ROOT / "scripts" / "run-pipeline.py",
     ]
 
     recommended_dirs = [
