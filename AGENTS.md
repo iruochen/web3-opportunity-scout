@@ -22,7 +22,7 @@ Build `web3-opportunity-scout` as a production-grade, multi-source Web3 opportun
    - add a source entry in `sources.yaml`
    - add a source-specific fetch adapter
    - add a source-specific normalizer or mapping rule
-   - follow the adapter onboarding guide in `references/source-onboarding.*.md`
+   - follow the adapter onboarding guide in `references/source-onboarding.md`
 
 3. Never store secrets in tracked files.
    API keys, tokens, cookies, and credentials must come from environment variables or local untracked overrides.
@@ -50,12 +50,12 @@ Build `web3-opportunity-scout` as a production-grade, multi-source Web3 opportun
 ## Documentation Rules
 
 - Keep short docs in both English and Chinese when they are user-facing.
-- Use `README.md` as a language navigation file.
+- Prefer single-file bilingual docs with anchor-based switching when practical.
+- Use relative Markdown links so docs stay portable on GitHub.
 - Prefer:
-  - `README.en.md`
-  - `README.zh.md`
-  - `references/*.en.md`
-  - `references/*.zh.md`
+  - `README.md`
+  - `docs/*.md`
+  - `references/*.md`
 
 ## Code Organization Rules
 
