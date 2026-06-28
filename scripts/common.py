@@ -143,6 +143,52 @@ def output_dir_from_config(config: dict[str, Any]) -> Path:
     return ROOT / str(load_profile_config(config).get("output_dir", "output"))
 
 
+def reporting_config(config: dict[str, Any]) -> dict[str, Any]:
+    reporting = config.get("reporting", {})
+    if not isinstance(reporting, dict):
+        return {}
+    return reporting
+
+
+def infer_locale_from_environment(config: dict[str, Any]) -> str:
+    for env_key in ("LC_ALL", "LC_MESSAGES", "LANG"):
+        value = str(os.environ.get(env_key, "")).lower()
+        if value.startswith("zh"):
+            return "zh"
+        if value.startswith("en"):
+            return "en"
+
+    timezone = str(load_profile_config(config).get("timezone", "")).lower()
+    if timezone.startswith("asia/shanghai") or timezone.startswith("asia/hong_kong") or timezone.startswith("asia/taipei"):
+        return "zh"
+    return "en"
+
+
+def resolve_reporting_locale(config: dict[str, Any]) -> str:
+    reporting = reporting_config(config)
+    locale = str(reporting.get("locale", "auto")).strip().lower()
+    if locale in {"en", "zh", "bilingual"}:
+        return locale
+    return infer_locale_from_environment(config)
+
+
+def resolve_reporting_formats(config: dict[str, Any]) -> list[str]:
+    reporting = reporting_config(config)
+    raw_formats = reporting.get("generate_formats")
+    if isinstance(raw_formats, list):
+        formats = [str(item).strip().lower() for item in raw_formats if str(item).strip()]
+    else:
+        primary = str(reporting.get("primary_format", "html")).strip().lower() or "html"
+        formats = [primary]
+
+    allowed = {"md", "html"}
+    deduped: list[str] = []
+    for item in formats:
+        if item in allowed and item not in deduped:
+            deduped.append(item)
+    return deduped or ["html"]
+
+
 def latest_json_file(path: Path) -> Path:
     candidates = sorted(path.rglob("*.json"))
     if not candidates:

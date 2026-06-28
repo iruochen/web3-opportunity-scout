@@ -52,6 +52,8 @@ make test
 
 - `output/ranked-opportunities.md`
 - `output/raw-opportunities.md`
+- `output/briefs/latest-brief.html`
+- `output/briefs/latest-brief.md`
 - `output/briefs/latest-brief.en.md`
 - `output/briefs/latest-brief.zh.md`
 - `output/project-theses/`
@@ -117,6 +119,8 @@ web3-opportunity-scout/
 - `sources.yaml` controls source enablement and request settings.
 - Each source can declare an `adapter` that maps to `fetch-<adapter>.py` and `normalize-<adapter>.py`.
 - `.env` is loaded automatically by the CLI when present.
+- `reporting.locale` supports `auto`, `en`, `zh`, and `bilingual`.
+- `reporting.generate_formats` supports `html` and `md`. The recommended push artifact is `output/briefs/latest-brief.html`.
 
 ### Publishing Notes
 
@@ -176,6 +180,8 @@ make test
 
 - `output/ranked-opportunities.md`
 - `output/raw-opportunities.md`
+- `output/briefs/latest-brief.html`
+- `output/briefs/latest-brief.md`
 - `output/briefs/latest-brief.en.md`
 - `output/briefs/latest-brief.zh.md`
 - `output/project-theses/`
@@ -241,6 +247,8 @@ web3-opportunity-scout/
 - `sources.yaml` 控制 source 启用状态和请求配置。
 - 每个 source 都可以声明一个 `adapter`，映射到 `fetch-<adapter>.py` 和 `normalize-<adapter>.py`。
 - 当 `.env` 存在时，CLI 会自动加载其中的环境变量。
+- `reporting.locale` 支持 `auto`、`en`、`zh`、`bilingual`。
+- `reporting.generate_formats` 支持 `html` 和 `md`，其中推荐用于推送展示的是 `output/briefs/latest-brief.html`。
 
 ### 发布说明
 

@@ -40,6 +40,11 @@ run:
   save_compact_context: true
 
 reporting:
+  locale: auto
+  primary_format: html
+  generate_formats:
+    - html
+    - md
   include_rejected_candidates: false
   include_source_trace: true
   include_score_breakdown: true
