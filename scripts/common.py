@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -202,6 +203,73 @@ def default_run_state() -> dict[str, Any]:
         "runs": [],
         "sources": {},
     }
+
+
+def make_run_id(prefix: str = "run") -> str:
+    return f"{prefix}_{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}_{uuid.uuid4().hex[:8]}"
+
+
+def load_run_state(state_dir: Path) -> dict[str, Any]:
+    return read_json_file(state_dir / "run-state.json", default_run_state())
+
+
+def write_run_state(state_dir: Path, run_state: dict[str, Any]) -> None:
+    run_state["updated_at"] = utc_now_iso()
+    write_json_file(state_dir / "run-state.json", run_state)
+
+
+def start_pipeline_run(state_dir: Path, source_id: str, top_n: int, skip_fetch: bool) -> str:
+    run_state = load_run_state(state_dir)
+    run_id = make_run_id("pipeline")
+    run_entry = {
+        "run_id": run_id,
+        "status": "running",
+        "source_id": source_id,
+        "top_n": top_n,
+        "skip_fetch": skip_fetch,
+        "started_at": utc_now_iso(),
+        "finished_at": None,
+        "current_stage": "init",
+        "completed_stages": [],
+        "error": None,
+    }
+    run_state["active_run"] = run_id
+    run_state.setdefault("runs", []).append(run_entry)
+    run_state["runs"] = run_state["runs"][-50:]
+    write_run_state(state_dir, run_state)
+    return run_id
+
+
+def update_pipeline_stage(state_dir: Path, run_id: str, stage_name: str, completed: bool = False) -> None:
+    run_state = load_run_state(state_dir)
+    for run in run_state.get("runs", []):
+        if run.get("run_id") != run_id:
+            continue
+        run["current_stage"] = stage_name
+        if completed:
+            stages = list(run.get("completed_stages", []))
+            if stage_name not in stages:
+                stages.append(stage_name)
+            run["completed_stages"] = stages
+        break
+    write_run_state(state_dir, run_state)
+
+
+def finish_pipeline_run(state_dir: Path, run_id: str, status: str, error: str | None = None) -> None:
+    run_state = load_run_state(state_dir)
+    for run in run_state.get("runs", []):
+        if run.get("run_id") != run_id:
+            continue
+        run["status"] = status
+        run["finished_at"] = utc_now_iso()
+        run["error"] = error
+        break
+
+    if run_state.get("active_run") == run_id:
+        run_state["active_run"] = None
+    if status == "completed":
+        run_state["last_completed_run"] = run_id
+    write_run_state(state_dir, run_state)
 
 
 def default_event_memory() -> dict[str, Any]:

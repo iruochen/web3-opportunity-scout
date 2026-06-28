@@ -31,6 +31,16 @@ def main() -> int:
             last_fetch_at = source_state.get("last_fetch_at", "n/a")
             print(f"- {source_id}: status={last_status}, last_fetch_at={last_fetch_at}")
 
+    if runs:
+        print("\nRecent runs:")
+        for run in runs[-5:]:
+            run_id = run.get("run_id")
+            status = run.get("status")
+            source_id = run.get("source_id")
+            current_stage = run.get("current_stage")
+            completed = ",".join(run.get("completed_stages", []))
+            print(f"- {run_id}: status={status}, source={source_id}, current_stage={current_stage}, completed=[{completed}]")
+
     return 0
 
 

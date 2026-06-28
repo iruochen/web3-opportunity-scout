@@ -7,7 +7,16 @@ import subprocess
 import sys
 from pathlib import Path
 
-from common import find_source_definition, load_dotenv_file, load_effective_yaml, resolve_source_adapter
+from common import (
+    find_source_definition,
+    finish_pipeline_run,
+    load_dotenv_file,
+    load_effective_yaml,
+    resolve_source_adapter,
+    start_pipeline_run,
+    state_dir_from_config,
+    update_pipeline_stage,
+)
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -32,21 +41,59 @@ def run_step(args: list[str]) -> None:
 def main() -> int:
     load_dotenv_file()
     args = parse_args()
+    config, _ = load_effective_yaml("config.yaml", "config.example.yaml")
     sources_config, _ = load_effective_yaml("sources.yaml", "sources.example.yaml")
     _, source_def = find_source_definition(sources_config, args.source)
     adapter = resolve_source_adapter(args.source, source_def)
+    state_dir = state_dir_from_config(config)
+    run_id = start_pipeline_run(state_dir, args.source, args.top, args.skip_fetch)
 
-    run_step(["scripts/init.py"])
-    if not args.skip_fetch:
-        run_step([f"scripts/fetch-{adapter}.py", "--source-id", args.source, "--days", str(args.days)])
-    run_step([f"scripts/normalize-{adapter}.py", "--source-id", args.source])
-    run_step(["scripts/merge-project-entities.py"])
-    run_step(["scripts/score-opportunities.py", "--top", str(args.top)])
-    run_step(["scripts/build-summary-context.py", "--top", str(args.top)])
-    run_step(["scripts/build-project-dossiers.py", "--top", str(args.top)])
-    run_step(["scripts/build-briefs.py", "--top", str(min(args.top, 8))])
-    run_step(["scripts/check-run-state.py"])
-    return 0
+    try:
+        update_pipeline_stage(state_dir, run_id, "init")
+        run_step(["scripts/init.py"])
+        update_pipeline_stage(state_dir, run_id, "init", completed=True)
+
+        if not args.skip_fetch:
+            update_pipeline_stage(state_dir, run_id, "fetch")
+            run_step([f"scripts/fetch-{adapter}.py", "--source-id", args.source, "--days", str(args.days)])
+            update_pipeline_stage(state_dir, run_id, "fetch", completed=True)
+
+        update_pipeline_stage(state_dir, run_id, "normalize")
+        run_step([f"scripts/normalize-{adapter}.py", "--source-id", args.source])
+        update_pipeline_stage(state_dir, run_id, "normalize", completed=True)
+
+        update_pipeline_stage(state_dir, run_id, "merge")
+        run_step(["scripts/merge-project-entities.py"])
+        update_pipeline_stage(state_dir, run_id, "merge", completed=True)
+
+        update_pipeline_stage(state_dir, run_id, "score")
+        run_step(["scripts/score-opportunities.py", "--top", str(args.top)])
+        update_pipeline_stage(state_dir, run_id, "score", completed=True)
+
+        update_pipeline_stage(state_dir, run_id, "context")
+        run_step(["scripts/build-summary-context.py", "--top", str(args.top)])
+        update_pipeline_stage(state_dir, run_id, "context", completed=True)
+
+        update_pipeline_stage(state_dir, run_id, "dossiers")
+        run_step(["scripts/build-project-dossiers.py", "--top", str(args.top)])
+        update_pipeline_stage(state_dir, run_id, "dossiers", completed=True)
+
+        update_pipeline_stage(state_dir, run_id, "briefs")
+        run_step(["scripts/build-briefs.py", "--top", str(min(args.top, 8))])
+        update_pipeline_stage(state_dir, run_id, "briefs", completed=True)
+
+        update_pipeline_stage(state_dir, run_id, "check-run-state")
+        run_step(["scripts/check-run-state.py"])
+        update_pipeline_stage(state_dir, run_id, "check-run-state", completed=True)
+
+        finish_pipeline_run(state_dir, run_id, "completed")
+        return 0
+    except subprocess.CalledProcessError as exc:
+        finish_pipeline_run(state_dir, run_id, "failed", error=f"Command failed with exit code {exc.returncode}")
+        return exc.returncode
+    except Exception as exc:
+        finish_pipeline_run(state_dir, run_id, "failed", error=str(exc))
+        raise
 
 
 if __name__ == "__main__":

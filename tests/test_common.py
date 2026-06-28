@@ -13,7 +13,15 @@ if str(SCRIPTS_DIR) not in sys.path:
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.common import infer_participation_angle, infer_validation_sources, load_dotenv_file
+from scripts.common import (
+    finish_pipeline_run,
+    infer_participation_angle,
+    infer_validation_sources,
+    load_dotenv_file,
+    load_run_state,
+    start_pipeline_run,
+    update_pipeline_stage,
+)
 
 
 class DotenvTests(unittest.TestCase):
@@ -53,6 +61,22 @@ class InferenceTests(unittest.TestCase):
         results = infer_validation_sources(["DeFi", "Layer1"], ["rootdata_projects"])
         self.assertIn("RootData project detail page", results)
         self.assertIn("DeFiLlama listings or TVL changes", results)
+
+
+class RunStateTests(unittest.TestCase):
+    def test_run_lifecycle_updates_state(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            state_dir = Path(tmpdir)
+            run_id = start_pipeline_run(state_dir, "rootdata_projects", 10, True)
+            update_pipeline_stage(state_dir, run_id, "normalize", completed=True)
+            finish_pipeline_run(state_dir, run_id, "completed")
+
+            run_state = load_run_state(state_dir)
+            self.assertEqual(run_state["active_run"], None)
+            self.assertEqual(run_state["last_completed_run"], run_id)
+            self.assertEqual(len(run_state["runs"]), 1)
+            self.assertEqual(run_state["runs"][0]["status"], "completed")
+            self.assertIn("normalize", run_state["runs"][0]["completed_stages"])
 
 
 if __name__ == "__main__":
