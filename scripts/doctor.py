@@ -34,6 +34,8 @@ def check_paths() -> list[CheckResult]:
         ROOT / "requirements.txt",
         ROOT / "references" / "init-flow.md",
         ROOT / "references" / "scoring-rules.example.md",
+        ROOT / "references" / "source-onboarding.en.md",
+        ROOT / "references" / "source-onboarding.zh.md",
         ROOT / "prompts" / "summary-template.md",
         ROOT / "prompts" / "project-thesis-template.md",
         ROOT / "scripts" / "common.py",
@@ -49,6 +51,8 @@ def check_paths() -> list[CheckResult]:
         ROOT / "scripts" / "build-summary-context.py",
         ROOT / "scripts" / "build-project-dossiers.py",
         ROOT / "scripts" / "build-briefs.py",
+        ROOT / "scripts" / "fetch-template.py",
+        ROOT / "scripts" / "normalize-template.py",
     ]
 
     recommended_dirs = [
