@@ -30,6 +30,20 @@ class CliParserTests(unittest.TestCase):
         self.assertTrue(args.dry_run)
         self.assertEqual(args.days, 3)
 
+    def test_generic_fetch_parses_source(self) -> None:
+        parser = build_parser()
+        args = parser.parse_args(["fetch", "--source", "rootdata_projects", "--dry-run"])
+        self.assertEqual(args.command, "fetch")
+        self.assertEqual(args.source, "rootdata_projects")
+        self.assertTrue(args.dry_run)
+
+    def test_run_parses_source(self) -> None:
+        parser = build_parser()
+        args = parser.parse_args(["run", "--source", "rootdata_projects", "--skip-fetch"])
+        self.assertEqual(args.command, "run")
+        self.assertEqual(args.source, "rootdata_projects")
+        self.assertTrue(args.skip_fetch)
+
 
 if __name__ == "__main__":
     unittest.main()

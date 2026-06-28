@@ -82,6 +82,28 @@ def find_source_definition(sources_config: dict[str, Any], source_id: str) -> tu
     raise KeyError(f"Source id not found: {source_id}")
 
 
+def enabled_source_entries(sources_config: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
+    return [
+        (category, entry)
+        for category, entry in iter_source_entries(sources_config)
+        if bool(entry.get("enabled"))
+    ]
+
+
+def resolve_source_adapter(source_id: str, source_def: dict[str, Any]) -> str:
+    adapter = str(source_def.get("adapter", "")).strip()
+    if adapter:
+        return adapter
+
+    if source_id.endswith("_projects"):
+        return source_id[: -len("_projects")]
+    if source_id.endswith("_project"):
+        return source_id[: -len("_project")]
+    if source_id.endswith("_list"):
+        return source_id[: -len("_list")]
+    return source_id
+
+
 def read_json_file(path: Path, default: Any) -> Any:
     if not path.exists():
         return default

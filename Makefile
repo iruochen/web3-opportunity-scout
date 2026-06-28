@@ -1,7 +1,7 @@
 PYTHON ?= .venv/bin/python
 PIP ?= .venv/bin/pip
 
-.PHONY: help venv install doctor init fetch pipeline pipeline-skip test clean-output
+.PHONY: help venv install doctor init list-sources fetch pipeline pipeline-skip test clean-output
 
 help:
 	@echo "Available commands:"
@@ -9,6 +9,7 @@ help:
 	@echo "  make install        Install Python dependencies"
 	@echo "  make doctor         Validate repository setup"
 	@echo "  make init           Initialize state files"
+	@echo "  make list-sources   Show configured sources"
 	@echo "  make fetch          Fetch RootData raw cache"
 	@echo "  make pipeline       Run the full pipeline"
 	@echo "  make pipeline-skip  Rebuild outputs from existing cache"
@@ -27,14 +28,17 @@ doctor:
 init:
 	$(PYTHON) scripts/init.py
 
+list-sources:
+	$(PYTHON) scripts/cli.py list-sources
+
 fetch:
-	$(PYTHON) scripts/fetch-rootdata.py
+	$(PYTHON) scripts/cli.py fetch --source rootdata_projects
 
 pipeline:
-	$(PYTHON) scripts/cli.py run
+	$(PYTHON) scripts/cli.py run --source rootdata_projects
 
 pipeline-skip:
-	$(PYTHON) scripts/cli.py run --skip-fetch
+	$(PYTHON) scripts/cli.py run --source rootdata_projects --skip-fetch
 
 test:
 	$(PYTHON) -m unittest discover -s tests -p 'test_*.py'

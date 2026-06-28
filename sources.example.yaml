@@ -20,6 +20,7 @@ sources:
   discovery:
     - id: rootdata_projects
       enabled: false
+      adapter: rootdata
       type: api
       category: discovery
       label: RootData hot projects
@@ -38,6 +39,14 @@ sources:
           language: en
         body:
           days: 1
+    - id: opennews_projects
+      enabled: false
+      adapter: opennews
+      type: api
+      category: discovery
+      label: OpenNews project discovery
+      cadence: daily
+      notes: Placeholder for future integration. Add auth and request config when credentials are available.
     - id: github_trending_builders
       enabled: true
       type: github_search
