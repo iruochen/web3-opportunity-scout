@@ -17,6 +17,7 @@ from common import (
     default_run_state,
     ensure_dir,
     find_source_definition,
+    load_dotenv_file,
     load_effective_yaml,
     read_json_file,
     slugify,
@@ -151,6 +152,7 @@ def update_run_state(
 
 
 def main() -> int:
+    load_dotenv_file()
     args = parse_args()
     config, config_path = load_effective_yaml("config.yaml", "config.example.yaml")
     sources_config, sources_path = load_effective_yaml("sources.yaml", "sources.example.yaml")

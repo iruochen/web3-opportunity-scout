@@ -7,6 +7,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from common import load_dotenv_file
+
 
 ROOT = Path(__file__).resolve().parent.parent
 PYTHON = sys.executable
@@ -40,6 +42,7 @@ def run_script(args: list[str]) -> int:
 
 
 def main() -> int:
+    load_dotenv_file()
     parser = build_parser()
     args = parser.parse_args()
 

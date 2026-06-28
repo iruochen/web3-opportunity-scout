@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from datetime import UTC, datetime
 from pathlib import Path
@@ -12,6 +13,25 @@ import yaml
 
 
 ROOT = Path(__file__).resolve().parent.parent
+
+
+def load_dotenv_file(path: Path | None = None, override: bool = False) -> Path | None:
+    dotenv_path = path or (ROOT / ".env")
+    if not dotenv_path.exists():
+        return None
+
+    for raw_line in dotenv_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if not key:
+            continue
+        if override or key not in os.environ:
+            os.environ[key] = value
+    return dotenv_path
 
 
 def utc_now_iso() -> str:
