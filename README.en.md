@@ -31,7 +31,8 @@ pip install -r requirements.txt
 cp .env.example .env
 python scripts/cli.py doctor
 python scripts/cli.py init
-python scripts/cli.py run
+python scripts/cli.py list-sources
+python scripts/cli.py run --source rootdata_projects
 ```
 
 Or use the bundled `Makefile`:
@@ -40,6 +41,7 @@ Or use the bundled `Makefile`:
 make venv
 make install
 make doctor
+make list-sources
 make pipeline
 make test
 ```
@@ -57,6 +59,7 @@ This creates:
 
 - `config.yaml` controls focus chains, sectors, scoring thresholds, and state directories
 - `sources.yaml` controls enabled sources and source-specific request settings
+- each source can declare an `adapter`, which maps the source entry to its fetch/normalize implementation
 - secrets such as API keys should be provided through environment variables
 - `.env.example` shows the expected variable names for local setup
 - `scripts/cli.py` automatically loads variables from `.env` when the file exists

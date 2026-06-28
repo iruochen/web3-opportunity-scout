@@ -31,7 +31,8 @@ pip install -r requirements.txt
 cp .env.example .env
 python scripts/cli.py doctor
 python scripts/cli.py init
-python scripts/cli.py run
+python scripts/cli.py list-sources
+python scripts/cli.py run --source rootdata_projects
 ```
 
 也可以直接使用仓库自带的 `Makefile`：
@@ -40,6 +41,7 @@ python scripts/cli.py run
 make venv
 make install
 make doctor
+make list-sources
 make pipeline
 make test
 ```
@@ -57,6 +59,7 @@ make test
 
 - `config.yaml` 控制关注链、赛道、评分阈值和状态目录
 - `sources.yaml` 控制启用哪些 source 以及每个 source 的请求配置
+- 每个 source 都可以声明一个 `adapter`，用于映射到对应的 fetch / normalize 实现
 - API key 等 secret 通过环境变量提供，不写入仓库
 - `.env.example` 展示了本地运行时需要配置的环境变量名称
 - 当 `.env` 存在时，`scripts/cli.py` 会自动加载其中的环境变量
