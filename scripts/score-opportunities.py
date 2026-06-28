@@ -43,6 +43,9 @@ def extract_rank(project: dict[str, Any]) -> int | None:
 
 def compute_novelty(project: dict[str, Any], memory_projects: dict[str, Any]) -> float:
     previous = memory_projects.get(project["entity_key"], {})
+    last_seen_at = previous.get("last_seen_at")
+    if last_seen_at and last_seen_at == project.get("observed_at"):
+        return 90.0
     seen_count = int(previous.get("seen_count", 0))
     if seen_count <= 1:
         return 90.0
@@ -85,6 +88,16 @@ def label_for_score(score: float) -> str:
     if score >= 55:
         return "monitor"
     return "low priority for now"
+
+
+def label_for_score_zh(score: float) -> str:
+    if score >= 85:
+        return "高优先级跟踪"
+    if score >= 70:
+        return "强候选"
+    if score >= 55:
+        return "建议观察"
+    return "暂时低优先级"
 
 
 def build_reasoning(project: dict[str, Any], novelty: float, traction: float, asymmetry: float) -> list[str]:
