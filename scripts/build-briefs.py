@@ -35,6 +35,8 @@ def render_brief_en(projects: list[dict[str, Any]], focus: dict[str, Any]) -> st
         lines.append(f"- Score: {project['score']} ({project['label']})")
         lines.append(f"- Why it matters: {' '.join(project.get('reasoning', []))}")
         lines.append(f"- Signals: {' | '.join(project.get('supporting_signals', [])) or 'n/a'}")
+        lines.append(f"- Participation angle: {' '.join(project.get('participation_angle', []))}")
+        lines.append(f"- Suggested validation sources: {', '.join(project.get('validation_sources', []))}")
         lines.append(f"- Suggested next check: {project['follow_up_questions'][2]}")
         lines.append(f"- URL: {project.get('project_url') or 'n/a'}")
         lines.append("")
@@ -86,6 +88,8 @@ def render_brief_zh(projects: list[dict[str, Any]], focus: dict[str, Any]) -> st
         lines.append(f"- 评分: {project['score']} ({label_zh(project['label'])})")
         lines.append(f"- 为什么值得看: {' '.join(translate_reason_zh(item) for item in project.get('reasoning', []))}")
         lines.append(f"- 关键线索: {' | '.join(project.get('supporting_signals', [])) or 'n/a'}")
+        lines.append(f"- 参与角度: {' '.join(project.get('participation_angle', []))}")
+        lines.append(f"- 建议补查来源: {', '.join(project.get('validation_sources', []))}")
         lines.append(f"- 下一步建议: {translate_question_zh(project['follow_up_questions'][2])}")
         lines.append(f"- 链接: {project.get('project_url') or 'n/a'}")
         lines.append("")
@@ -111,6 +115,12 @@ def render_thesis_en(project: dict[str, Any]) -> str:
             "",
             "## Suggested Validation",
             "",
+            "- Participation angle:",
+            *[f"  - {item}" for item in project.get("participation_angle", [])],
+            "",
+            "- Suggested sources:",
+            *[f"  - {item}" for item in project.get("validation_sources", [])],
+            "",
             *[f"- {question}" for question in project.get("follow_up_questions", [])],
             "",
         ]
@@ -135,6 +145,12 @@ def render_thesis_zh(project: dict[str, Any]) -> str:
             *[f"- {signal}" for signal in project.get("supporting_signals", [])],
             "",
             "## 建议继续验证的问题",
+            "",
+            "- 参与角度：",
+            *[f"  - {item}" for item in project.get("participation_angle", [])],
+            "",
+            "- 建议补查来源：",
+            *[f"  - {item}" for item in project.get("validation_sources", [])],
             "",
             *[f"- {translate_question_zh(question)}" for question in project.get("follow_up_questions", [])],
             "",

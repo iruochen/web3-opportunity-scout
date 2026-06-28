@@ -46,6 +46,7 @@ def check_paths() -> list[CheckResult]:
         ROOT / "scripts" / "score-opportunities.py",
         ROOT / "scripts" / "run-pipeline.py",
         ROOT / "scripts" / "build-summary-context.py",
+        ROOT / "scripts" / "build-project-dossiers.py",
         ROOT / "scripts" / "build-briefs.py",
     ]
 

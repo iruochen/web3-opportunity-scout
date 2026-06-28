@@ -111,6 +111,46 @@ def clamp(value: float, minimum: float, maximum: float) -> float:
     return max(minimum, min(maximum, value))
 
 
+def infer_participation_angle(tags: list[str], summary: str) -> list[str]:
+    lowered_tags = {str(tag).strip().lower() for tag in tags}
+    lowered_summary = summary.lower()
+    suggestions: list[str] = []
+
+    if {"layer1", "layer2", "infra", "modular"} & lowered_tags or "network" in lowered_summary or "blockchain" in lowered_summary:
+        suggestions.append("Track testnet, validator, or ecosystem builder programs.")
+    if {"ai", "fhe", "privacy", "cloud computing"} & lowered_tags:
+        suggestions.append("Look for developer previews, research communities, or early integration programs.")
+    if {"defi", "dex", "perp", "lending", "stablecoin protocol", "prediction market"} & lowered_tags:
+        suggestions.append("Monitor product launch access, liquidity programs, and early user incentives.")
+    if {"payment", "crypto card", "did", "consumer"} & lowered_tags or "consumer" in lowered_summary:
+        suggestions.append("Watch for waitlists, referral programs, and user onboarding campaigns.")
+
+    if not suggestions:
+        suggestions.append("Check official channels for launch updates, partnerships, and early access opportunities.")
+
+    return suggestions
+
+
+def infer_validation_sources(tags: list[str], source_ids: list[str]) -> list[str]:
+    lowered_tags = {str(tag).strip().lower() for tag in tags}
+    suggestions = ["Official announcements", "Project X/Twitter account", "GitHub activity"]
+
+    if {"defi", "lending", "dex", "perp", "stablecoin protocol"} & lowered_tags:
+        suggestions.append("DeFiLlama listings or TVL changes")
+    if {"infra", "layer1", "layer2", "modular"} & lowered_tags:
+        suggestions.append("Ecosystem launch posts or developer documentation")
+    if {"ai", "privacy", "fhe"} & lowered_tags:
+        suggestions.append("Research threads, technical blog posts, or demo releases")
+    if "rootdata_projects" in source_ids:
+        suggestions.append("RootData project detail page")
+
+    deduped: list[str] = []
+    for item in suggestions:
+        if item not in deduped:
+            deduped.append(item)
+    return deduped
+
+
 def default_run_state() -> dict[str, Any]:
     return {
         "version": 1,

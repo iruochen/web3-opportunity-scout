@@ -35,6 +35,7 @@ def main() -> int:
     run_step(["scripts/merge-project-entities.py"])
     run_step(["scripts/score-opportunities.py", "--top", str(args.top)])
     run_step(["scripts/build-summary-context.py", "--top", str(args.top)])
+    run_step(["scripts/build-project-dossiers.py", "--top", str(args.top)])
     run_step(["scripts/build-briefs.py", "--top", str(min(args.top, 8))])
     run_step(["scripts/check-run-state.py"])
     return 0

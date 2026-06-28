@@ -8,6 +8,8 @@ from typing import Any
 from common import (
     ROOT,
     ensure_dir,
+    infer_participation_angle,
+    infer_validation_sources,
     latest_json_file,
     load_effective_yaml,
     output_dir_from_config,
@@ -27,6 +29,8 @@ def parse_args() -> argparse.Namespace:
 
 def build_context_item(project: dict[str, Any], watchlist_map: dict[str, Any]) -> dict[str, Any]:
     watch = watchlist_map.get(project["entity_key"], {})
+    tags = project.get("tags", [])
+    source_ids = project.get("source_ids", [])
     return {
         "entity_key": project["entity_key"],
         "project_name": project["project_name"],
@@ -35,8 +39,10 @@ def build_context_item(project: dict[str, Any], watchlist_map: dict[str, Any]) -
         "score": project.get("opportunity_score"),
         "label": project.get("label"),
         "supporting_signals": project.get("signals", [])[:4],
-        "tags": project.get("tags", [])[:6],
+        "tags": tags[:6],
         "reasoning": project.get("reasoning", []),
+        "participation_angle": infer_participation_angle(tags, project.get("summary", "")),
+        "validation_sources": infer_validation_sources(tags, source_ids),
         "known_state": {
             "already_in_watchlist": bool(watch),
             "watchlist_score": watch.get("opportunity_score"),
