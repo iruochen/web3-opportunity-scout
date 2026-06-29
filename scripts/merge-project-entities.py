@@ -51,6 +51,17 @@ def first_non_empty(records: list[dict[str, Any]], field_name: str) -> Any:
     return None
 
 
+def first_raw_ref_value(records: list[dict[str, Any]], field_name: str) -> str | None:
+    for record in records:
+        raw_ref = record.get("raw_ref", {})
+        if not isinstance(raw_ref, dict):
+            continue
+        value = str(raw_ref.get(field_name) or "").strip()
+        if value:
+            return value
+    return None
+
+
 def merge_people(records: list[dict[str, Any]]) -> list[dict[str, str]]:
     results: list[dict[str, str]] = []
     seen: set[tuple[str, str]] = set()
@@ -135,6 +146,8 @@ def merge_group(entity_key: str, records: list[dict[str, Any]], source_id: str) 
         "project_url": first_non_empty(records, "project_url"),
         "website_url": first_non_empty(records, "website_url"),
         "x_url": first_non_empty(records, "x_url"),
+        "rootdata_url": first_raw_ref_value(records, "rootdata_url"),
+        "detail_url": first_raw_ref_value(records, "detail_url"),
         "summary": pick_best_summary(records) or primary.get("summary"),
         "category": primary.get("category", "discovery"),
         "chains": primary.get("chains", []),

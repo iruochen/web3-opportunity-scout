@@ -53,6 +53,36 @@ def localized_items(project: dict[str, Any], field_name: str, locale: str) -> li
     return []
 
 
+def normalize_tag_text(tag: str) -> str:
+    return str(tag).replace("Ecosystem(1):", "Ecosystem").strip()
+
+
+def build_project_setup(project: dict[str, Any], locale: str) -> str:
+    summary = str(project.get("summary") or "").strip()
+    tags = [normalize_tag_text(str(item).strip()) for item in project.get("tags", []) if str(item).strip()]
+    founded = str(project.get("founded") or "").strip()
+    investors = [str(item).strip() for item in project.get("investors", []) if str(item).strip()]
+    team_count = len(project.get("team", []) if isinstance(project.get("team", []), list) else [])
+
+    if locale != "zh":
+        return summary or "n/a"
+
+    parts: list[str] = []
+    if tags:
+        parts.append(f"{' / '.join(tags[:3])} 方向")
+    else:
+        parts.append("早期项目方向")
+    if founded:
+        parts.append(f"{founded} 年进入当前观察面")
+    if investors:
+        parts.append(f"已看到 {min(len(investors), 4)} 条投资方线索")
+    if team_count:
+        parts.append(f"已识别 {team_count} 位具名团队成员")
+    if not parts and summary:
+        return "官网/来源描述暂未完全本地化，建议结合下方链接继续核实。"
+    return "，".join(parts) + "。"
+
+
 def build_fact_lines(project: dict[str, Any], locale: str) -> list[str]:
     facts: list[str] = []
     investors = [str(item).strip() for item in project.get("investors", []) if str(item).strip()]
@@ -77,6 +107,42 @@ def build_fact_lines(project: dict[str, Any], locale: str) -> list[str]:
     return facts[:4]
 
 
+def link_items(project: dict[str, Any], locale: str) -> list[tuple[str, str]]:
+    labels = {
+        "project_url": "项目页" if locale == "zh" else "Project",
+        "website_url": "官网" if locale == "zh" else "Website",
+        "x_url": "X" if locale == "zh" else "X",
+        "detail_url": "RootData" if locale == "zh" else "RootData",
+    }
+    links: list[tuple[str, str]] = []
+    seen_urls: set[str] = set()
+    for field_name in ("website_url", "x_url", "detail_url", "project_url"):
+        url = str(project.get(field_name) or "").strip()
+        if not url or url in seen_urls:
+            continue
+        seen_urls.add(url)
+        links.append((labels[field_name], url))
+    news_links = project.get("news_links", [])
+    if isinstance(news_links, list):
+        for index, item in enumerate(news_links[:2], start=1):
+            if not isinstance(item, dict):
+                continue
+            url = str(item.get("url") or "").strip()
+            if not url or url in seen_urls:
+                continue
+            seen_urls.add(url)
+            label = f"新闻{index}" if locale == "zh" else f"News {index}"
+            links.append((label, url))
+    return links
+
+
+def render_link_markdown(project: dict[str, Any], locale: str) -> str:
+    items = link_items(project, locale)
+    if not items:
+        return "n/a"
+    return " | ".join(f"[{label}]({url})" for label, url in items)
+
+
 def render_brief_en(projects: list[dict[str, Any]], focus: dict[str, Any]) -> str:
     lines = ["# Opportunity Brief", ""]
     lines.append(f"- Focus chains: {', '.join(focus.get('chains', [])) or 'global'}")
@@ -85,7 +151,7 @@ def render_brief_en(projects: list[dict[str, Any]], focus: dict[str, Any]) -> st
     lines.append("## Top Opportunities")
     lines.append("")
     for index, project in enumerate(projects, start=1):
-        project_summary = project.get("summary") or "n/a"
+        project_summary = build_project_setup(project, "en")
         action_premise = " ".join(localized_items(project, "opportunity_thesis", "en")) or "Only actionable when a concrete participation surface is live."
         fact_lines = build_fact_lines(project, "en")
         lines.append(f"### {index}. {project['project_name']}")
@@ -96,7 +162,7 @@ def render_brief_en(projects: list[dict[str, Any]], focus: dict[str, Any]) -> st
         lines.append(f"- Hard facts: {' | '.join(fact_lines) or 'n/a'}")
         lines.append(f"- Priority checks: {' '.join(localized_items(project, 'priority_checks', 'en'))}")
         lines.append(f"- Validation sources: {', '.join(localized_items(project, 'validation_sources', 'en'))}")
-        lines.append(f"- URL: {project.get('project_url') or 'n/a'}")
+        lines.append(f"- Links: {render_link_markdown(project, 'en')}")
         lines.append("")
     return "\n".join(lines).strip() + "\n"
 
@@ -178,7 +244,7 @@ def render_brief_zh(projects: list[dict[str, Any]], focus: dict[str, Any]) -> st
     lines.append("## 核心机会")
     lines.append("")
     for index, project in enumerate(projects, start=1):
-        project_summary = project.get("summary") or "n/a"
+        project_summary = build_project_setup(project, "zh")
         action_premise = " ".join(localized_items(project, "opportunity_thesis", "zh")) or "只有在真实参与入口已经开放时才值得上手。"
         fact_lines = build_fact_lines(project, "zh")
         lines.append(f"### {index}. {project['project_name']}")
@@ -189,7 +255,7 @@ def render_brief_zh(projects: list[dict[str, Any]], focus: dict[str, Any]) -> st
         lines.append(f"- 硬线索: {' | '.join(fact_lines) or 'n/a'}")
         lines.append(f"- 优先补查: {' '.join(localized_items(project, 'priority_checks', 'zh'))}")
         lines.append(f"- 建议补查来源: {', '.join(localized_items(project, 'validation_sources', 'zh'))}")
-        lines.append(f"- 链接: {project.get('project_url') or 'n/a'}")
+        lines.append(f"- 链接集合: {render_link_markdown(project, 'zh')}")
         lines.append("")
     return "\n".join(lines).strip() + "\n"
 
@@ -200,7 +266,7 @@ def render_thesis_en(project: dict[str, Any]) -> str:
             f"# {project['project_name']} Thesis",
             "",
             f"- Score: {project['score']} ({project['label']})",
-            f"- URL: {project.get('project_url') or 'n/a'}",
+            f"- Links: {render_link_markdown(project, 'en')}",
             f"- Tags: {', '.join(project.get('tags', [])) or 'n/a'}",
             "",
             "## Why This Looks Early",
@@ -237,7 +303,7 @@ def render_thesis_zh(project: dict[str, Any]) -> str:
             f"# {project['project_name']} 机会 Thesis",
             "",
             f"- 评分: {project['score']} ({label_zh(project['label'])})",
-            f"- 链接: {project.get('project_url') or 'n/a'}",
+            f"- 链接集合: {render_link_markdown(project, 'zh')}",
             f"- 标签: {', '.join(project.get('tags', [])) or 'n/a'}",
             "",
             "## 为什么这可能还处于早期",
@@ -280,7 +346,7 @@ def render_project_cards_html(projects: list[dict[str, Any]], locale: str) -> st
         checks = localized_items(project, "priority_checks", locale)
         primary_check = checks[0] if checks else "n/a"
         score_label = "评分" if locale == "zh" else "Score"
-        project_setup = project.get("summary") or "n/a"
+        project_setup = build_project_setup(project, locale)
         action_premise = (
             " ".join(localized_items(project, "opportunity_thesis", "zh")) or "只有在真实参与入口已经开放时才值得上手。"
             if locale == "zh"
@@ -291,22 +357,30 @@ def render_project_cards_html(projects: list[dict[str, Any]], locale: str) -> st
         angle_label = "参与动作" if locale == "zh" else "Participation angle"
         signal_label = "硬线索" if locale == "zh" else "Hard facts"
         next_label = "优先补查" if locale == "zh" else "Priority check"
-        link_label = "项目链接" if locale == "zh" else "Project link"
+        link_label = "链接集合" if locale == "zh" else "Links"
         fact_lines = build_fact_lines(project, locale)
+        link_html = "".join(
+            f'<a class="link-pill" href="{html_escape(url)}" target="_blank" rel="noopener noreferrer">{html_escape(label)}</a>'
+            for label, url in link_items(project, locale)
+        ) or '<span class="link-pill muted">n/a</span>'
+        tag_html = "".join(f'<span class="tag-pill">{html_escape(tag)}</span>' for tag in project.get("tags", [])[:4])
 
         cards.append(
             "\n".join(
                 [
                     '<article class="opportunity-card">',
-                    f'  <div class="card-rank">{index:02d}</div>',
+                    '  <div class="card-top">',
+                    f'    <div class="card-rank">{index:02d}</div>',
+                    f'    <p class="score-pill">{score_label}: {score} · {label}</p>',
+                    "  </div>",
                     f"  <h2>{title}</h2>",
-                    f'  <p class="score-pill">{score_label}: {score} · {label}</p>',
+                    f'  <div class="tag-row">{tag_html}</div>',
                     f'  <div class="card-block"><span class="block-label">{setup_label}</span><p>{html_escape(project_setup)}</p></div>',
                     f'  <div class="card-block"><span class="block-label">{why_label}</span><p>{html_escape(action_premise)}</p></div>',
                     f'  <div class="card-block"><span class="block-label">{angle_label}</span><p>{html_escape(" ".join(participation) or "n/a")}</p></div>',
                     f'  <div class="card-block"><span class="block-label">{signal_label}</span><p>{html_escape(" | ".join(fact_lines) or "n/a")}</p></div>',
                     f'  <div class="card-block"><span class="block-label">{next_label}</span><p>{html_escape(primary_check)}</p></div>',
-                    f'  <p><a href="{url}" target="_blank" rel="noopener noreferrer">{link_label}</a></p>',
+                    f'  <div class="card-links"><span class="block-label">{link_label}</span><div class="link-row">{link_html}</div></div>',
                     "</article>",
                 ]
             )
@@ -339,46 +413,53 @@ def render_brief_html(projects: list[dict[str, Any]], focus: dict[str, Any], loc
     <style>
       :root {{
         color-scheme: light;
-        --bg: #f4efe6;
-        --ink: #18222d;
-        --muted: #5e6a72;
-        --accent: #d96c3d;
-        --accent-soft: #f7d9cb;
-        --card: rgba(255, 255, 255, 0.86);
-        --border: rgba(24, 34, 45, 0.08);
-        --shadow: 0 24px 70px rgba(24, 34, 45, 0.08);
-        --panel: #fffaf4;
+        --bg: #f7f3ea;
+        --ink: #17212b;
+        --muted: #5b6770;
+        --accent: #c85c2f;
+        --accent-2: #0f766e;
+        --accent-soft: #ffe2d4;
+        --card: rgba(255, 255, 255, 0.9);
+        --border: rgba(23, 33, 43, 0.08);
+        --shadow: 0 18px 50px rgba(23, 33, 43, 0.08);
+        --panel: rgba(255, 251, 246, 0.95);
+        --tag: #f1ede5;
       }}
       * {{ box-sizing: border-box; }}
       body {{
         margin: 0;
-        font-family: "Georgia", "Times New Roman", serif;
+        font-family: "Avenir Next", "SF Pro Display", "Helvetica Neue", sans-serif;
         color: var(--ink);
         background:
-          radial-gradient(circle at top left, rgba(217,108,61,0.18), transparent 24rem),
-          linear-gradient(180deg, #fbf7f1 0%, var(--bg) 100%);
+          radial-gradient(circle at top left, rgba(200,92,47,0.2), transparent 20rem),
+          radial-gradient(circle at top right, rgba(15,118,110,0.12), transparent 24rem),
+          linear-gradient(180deg, #fcf8f2 0%, var(--bg) 100%);
       }}
       main {{
-        max-width: 1040px;
+        max-width: 1180px;
         margin: 0 auto;
         padding: 56px 20px 72px;
       }}
       .hero {{
-        padding: 32px;
+        padding: 36px;
         border: 1px solid var(--border);
-        border-radius: 28px;
-        background: linear-gradient(135deg, rgba(255,255,255,0.92), rgba(255,248,241,0.88));
+        border-radius: 32px;
+        background:
+          linear-gradient(135deg, rgba(255,255,255,0.96), rgba(255,248,241,0.9)),
+          linear-gradient(120deg, rgba(200,92,47,0.06), rgba(15,118,110,0.04));
         box-shadow: var(--shadow);
       }}
       h1 {{
         margin: 0 0 10px;
-        font-size: clamp(2rem, 4vw, 3.5rem);
-        line-height: 0.95;
+        font-size: clamp(2.2rem, 4vw, 4rem);
+        line-height: 0.92;
+        letter-spacing: -0.03em;
       }}
       .subtitle {{
         margin: 0 0 18px;
         color: var(--muted);
-        font-size: 1rem;
+        font-size: 1.02rem;
+        max-width: 62ch;
       }}
       .meta {{
         display: grid;
@@ -388,7 +469,7 @@ def render_brief_html(projects: list[dict[str, Any]], focus: dict[str, Any], loc
       }}
       .meta-card, .opportunity-card {{
         border: 1px solid var(--border);
-        border-radius: 22px;
+        border-radius: 24px;
         background: var(--card);
         backdrop-filter: blur(12px);
         box-shadow: var(--shadow);
@@ -406,39 +487,68 @@ def render_brief_html(projects: list[dict[str, Any]], focus: dict[str, Any], loc
       }}
       .opportunities {{
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-        gap: 20px;
-        margin-top: 26px;
+        grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+        gap: 22px;
+        margin-top: 30px;
       }}
       .opportunity-card {{
         position: relative;
-        padding: 24px 20px 18px;
+        padding: 22px 20px 18px;
         overflow: hidden;
+      }}
+      .opportunity-card::before {{
+        content: "";
+        position: absolute;
+        inset: 0 0 auto 0;
+        height: 5px;
+        background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      }}
+      .card-top {{
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 14px;
       }}
       .card-rank {{
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 40px;
-        height: 40px;
+        width: 44px;
+        height: 44px;
         border-radius: 999px;
         background: var(--accent-soft);
         color: var(--accent);
         font-weight: 700;
-        margin-bottom: 14px;
       }}
       .opportunity-card h2 {{
-        margin: 0 0 8px;
-        font-size: 1.5rem;
+        margin: 0 0 10px;
+        font-size: 1.55rem;
+        letter-spacing: -0.02em;
       }}
       .score-pill {{
         display: inline-block;
-        margin: 0 0 14px;
-        padding: 7px 12px;
+        margin: 0;
+        padding: 8px 12px;
         border-radius: 999px;
         background: #18222d;
         color: #fff;
-        font-size: 0.9rem;
+        font-size: 0.86rem;
+      }}
+      .tag-row {{
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 14px;
+      }}
+      .tag-pill {{
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: var(--tag);
+        color: var(--muted);
+        font-size: 0.8rem;
       }}
       .opportunity-card p {{
         margin: 0 0 12px;
@@ -447,8 +557,8 @@ def render_brief_html(projects: list[dict[str, Any]], focus: dict[str, Any], loc
       }}
       .card-block {{
         margin: 0 0 12px;
-        padding: 12px 12px 10px;
-        border-radius: 16px;
+        padding: 12px 13px 11px;
+        border-radius: 18px;
         background: var(--panel);
         border: 1px solid rgba(24, 34, 45, 0.06);
       }}
@@ -461,10 +571,28 @@ def render_brief_html(projects: list[dict[str, Any]], focus: dict[str, Any], loc
         text-transform: uppercase;
         color: var(--accent);
       }}
-      .opportunity-card a {{
+      .card-links {{
+        margin-top: 4px;
+      }}
+      .link-row {{
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }}
+      .link-pill {{
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: #fff;
+        border: 1px solid rgba(24, 34, 45, 0.08);
         color: var(--accent);
         text-decoration: none;
         font-weight: 600;
+        font-size: 0.85rem;
+      }}
+      .link-pill.muted {{
+        color: var(--muted);
       }}
       @media (max-width: 640px) {{
         main {{

@@ -35,6 +35,8 @@ def dossier_from_context(project: dict[str, Any]) -> dict[str, Any]:
         "project_url": project.get("project_url"),
         "website_url": project.get("website_url"),
         "x_url": project.get("x_url"),
+        "rootdata_url": project.get("rootdata_url"),
+        "detail_url": project.get("detail_url"),
         "summary": project.get("summary"),
         "score": project.get("score"),
         "label": project.get("label"),

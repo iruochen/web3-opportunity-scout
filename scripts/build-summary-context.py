@@ -44,6 +44,8 @@ def build_context_item(project: dict[str, Any], watchlist_map: dict[str, Any]) -
         "project_url": project.get("project_url"),
         "website_url": project.get("website_url"),
         "x_url": project.get("x_url"),
+        "rootdata_url": project.get("rootdata_url"),
+        "detail_url": project.get("detail_url"),
         "summary": summary,
         "score": project.get("opportunity_score"),
         "label": project.get("label"),

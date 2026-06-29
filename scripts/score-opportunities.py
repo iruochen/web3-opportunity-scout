@@ -211,6 +211,8 @@ def main() -> int:
                 "project_url": project.get("project_url"),
                 "website_url": project.get("website_url"),
                 "x_url": project.get("x_url"),
+                "rootdata_url": project.get("rootdata_url"),
+                "detail_url": project.get("detail_url"),
                 "summary": project.get("summary"),
                 "tags": project.get("tags", []),
                 "signals": project.get("signals", []),
