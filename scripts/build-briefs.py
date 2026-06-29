@@ -340,8 +340,6 @@ def render_project_cards_html(projects: list[dict[str, Any]], locale: str) -> st
         title = html_escape(project["project_name"])
         score = html_escape(str(project["score"]))
         label = html_escape(label_zh(project["label"]) if locale == "zh" else project["label"])
-        url = html_escape(project.get("project_url") or "#")
-        signals = project.get("supporting_signals", [])
         participation = localized_items(project, "participation_angle", locale)
         checks = localized_items(project, "priority_checks", locale)
         primary_check = checks[0] if checks else "n/a"
@@ -359,6 +357,7 @@ def render_project_cards_html(projects: list[dict[str, Any]], locale: str) -> st
         next_label = "优先补查" if locale == "zh" else "Priority check"
         link_label = "链接集合" if locale == "zh" else "Links"
         fact_lines = build_fact_lines(project, locale)
+        compact_angle = participation[0] if participation else "n/a"
         link_html = "".join(
             f'<a class="link-pill" href="{html_escape(url)}" target="_blank" rel="noopener noreferrer">{html_escape(label)}</a>'
             for label, url in link_items(project, locale)
@@ -375,12 +374,15 @@ def render_project_cards_html(projects: list[dict[str, Any]], locale: str) -> st
                     "  </div>",
                     f"  <h2>{title}</h2>",
                     f'  <div class="tag-row">{tag_html}</div>',
-                    f'  <div class="card-block"><span class="block-label">{setup_label}</span><p>{html_escape(project_setup)}</p></div>',
-                    f'  <div class="card-block"><span class="block-label">{why_label}</span><p>{html_escape(action_premise)}</p></div>',
-                    f'  <div class="card-block"><span class="block-label">{angle_label}</span><p>{html_escape(" ".join(participation) or "n/a")}</p></div>',
-                    f'  <div class="card-block"><span class="block-label">{signal_label}</span><p>{html_escape(" | ".join(fact_lines) or "n/a")}</p></div>',
-                    f'  <div class="card-block"><span class="block-label">{next_label}</span><p>{html_escape(primary_check)}</p></div>',
+                    f'  <p class="setup-inline">{html_escape(project_setup)}</p>',
+                    f'  <div class="compact-grid"><div class="mini-block"><span class="block-label">{why_label}</span><p>{html_escape(action_premise)}</p></div><div class="mini-block"><span class="block-label">{angle_label}</span><p>{html_escape(compact_angle)}</p></div></div>',
                     f'  <div class="card-links"><span class="block-label">{link_label}</span><div class="link-row">{link_html}</div></div>',
+                    '  <details class="detail-drawer">',
+                    f'    <summary>{"展开详情" if locale == "zh" else "Open details"}</summary>',
+                    f'    <div class="card-block"><span class="block-label">{signal_label}</span><p>{html_escape(" | ".join(fact_lines) or "n/a")}</p></div>',
+                    f'    <div class="card-block"><span class="block-label">{next_label}</span><p>{html_escape(primary_check)}</p></div>',
+                    f'    <div class="card-block"><span class="block-label">{"更多参与动作" if locale == "zh" else "More participation moves"}</span><p>{html_escape(" ".join(participation) or "n/a")}</p></div>',
+                    '  </details>',
                     "</article>",
                 ]
             )
@@ -413,17 +415,22 @@ def render_brief_html(projects: list[dict[str, Any]], focus: dict[str, Any], loc
     <style>
       :root {{
         color-scheme: light;
-        --bg: #f7f3ea;
-        --ink: #17212b;
-        --muted: #5b6770;
-        --accent: #c85c2f;
-        --accent-2: #0f766e;
-        --accent-soft: #ffe2d4;
-        --card: rgba(255, 255, 255, 0.9);
-        --border: rgba(23, 33, 43, 0.08);
-        --shadow: 0 18px 50px rgba(23, 33, 43, 0.08);
-        --panel: rgba(255, 251, 246, 0.95);
-        --tag: #f1ede5;
+        --bg: #f6f1e8;
+        --ink: #14202a;
+        --muted: #61707b;
+        --accent: #bf5b34;
+        --accent-2: #0c6b64;
+        --accent-soft: #ffe6d8;
+        --accent-line: rgba(191, 91, 52, 0.18);
+        --card: rgba(255, 255, 255, 0.92);
+        --border: rgba(20, 32, 42, 0.08);
+        --border-strong: rgba(20, 32, 42, 0.12);
+        --shadow: 0 16px 40px rgba(20, 32, 42, 0.08);
+        --shadow-hover: 0 24px 60px rgba(20, 32, 42, 0.12);
+        --panel: rgba(255, 252, 247, 0.96);
+        --tag: #f2ece2;
+        --tag-ink: #49606a;
+        --pill-bg: #1b2731;
       }}
       * {{ box-sizing: border-box; }}
       body {{
@@ -431,12 +438,12 @@ def render_brief_html(projects: list[dict[str, Any]], focus: dict[str, Any], loc
         font-family: "Avenir Next", "SF Pro Display", "Helvetica Neue", sans-serif;
         color: var(--ink);
         background:
-          radial-gradient(circle at top left, rgba(200,92,47,0.2), transparent 20rem),
-          radial-gradient(circle at top right, rgba(15,118,110,0.12), transparent 24rem),
-          linear-gradient(180deg, #fcf8f2 0%, var(--bg) 100%);
+          radial-gradient(circle at top left, rgba(191,91,52,0.18), transparent 18rem),
+          radial-gradient(circle at top right, rgba(12,107,100,0.12), transparent 24rem),
+          linear-gradient(180deg, #fdf9f2 0%, var(--bg) 100%);
       }}
       main {{
-        max-width: 1180px;
+        max-width: 1120px;
         margin: 0 auto;
         padding: 56px 20px 72px;
       }}
@@ -445,9 +452,21 @@ def render_brief_html(projects: list[dict[str, Any]], focus: dict[str, Any], loc
         border: 1px solid var(--border);
         border-radius: 32px;
         background:
-          linear-gradient(135deg, rgba(255,255,255,0.96), rgba(255,248,241,0.9)),
-          linear-gradient(120deg, rgba(200,92,47,0.06), rgba(15,118,110,0.04));
+          linear-gradient(135deg, rgba(255,255,255,0.97), rgba(255,249,242,0.92)),
+          linear-gradient(120deg, rgba(191,91,52,0.05), rgba(12,107,100,0.04));
         box-shadow: var(--shadow);
+        position: relative;
+        overflow: hidden;
+      }}
+      .hero::after {{
+        content: "";
+        position: absolute;
+        inset: auto -4rem -5rem auto;
+        width: 14rem;
+        height: 14rem;
+        border-radius: 999px;
+        background: radial-gradient(circle, rgba(12,107,100,0.12), transparent 68%);
+        pointer-events: none;
       }}
       h1 {{
         margin: 0 0 10px;
@@ -458,14 +477,14 @@ def render_brief_html(projects: list[dict[str, Any]], focus: dict[str, Any], loc
       .subtitle {{
         margin: 0 0 18px;
         color: var(--muted);
-        font-size: 1.02rem;
+        font-size: 1rem;
         max-width: 62ch;
       }}
       .meta {{
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        gap: 12px;
-        margin-top: 18px;
+        gap: 14px;
+        margin-top: 20px;
       }}
       .meta-card, .opportunity-card {{
         border: 1px solid var(--border);
@@ -475,32 +494,43 @@ def render_brief_html(projects: list[dict[str, Any]], focus: dict[str, Any], loc
         box-shadow: var(--shadow);
       }}
       .meta-card {{
-        padding: 16px 18px;
+        padding: 16px 18px 18px;
+        border-color: var(--accent-line);
       }}
       .meta-card strong {{
         display: block;
         margin-bottom: 6px;
-        font-size: 0.82rem;
+        font-size: 0.78rem;
         text-transform: uppercase;
         letter-spacing: 0.08em;
         color: var(--muted);
       }}
+      .meta-card span {{
+        font-size: 1rem;
+        font-weight: 600;
+      }}
       .opportunities {{
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
-        gap: 22px;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 20px;
         margin-top: 30px;
       }}
       .opportunity-card {{
         position: relative;
-        padding: 22px 20px 18px;
+        padding: 20px 18px 16px;
         overflow: hidden;
+        transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+      }}
+      .opportunity-card:hover {{
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-hover);
+        border-color: var(--border-strong);
       }}
       .opportunity-card::before {{
         content: "";
         position: absolute;
         inset: 0 0 auto 0;
-        height: 5px;
+        height: 4px;
         background: linear-gradient(90deg, var(--accent), var(--accent-2));
       }}
       .card-top {{
@@ -520,26 +550,29 @@ def render_brief_html(projects: list[dict[str, Any]], focus: dict[str, Any], loc
         background: var(--accent-soft);
         color: var(--accent);
         font-weight: 700;
+        box-shadow: inset 0 0 0 1px rgba(191, 91, 52, 0.1);
       }}
       .opportunity-card h2 {{
-        margin: 0 0 10px;
-        font-size: 1.55rem;
+        margin: 0 0 8px;
+        font-size: 1.35rem;
         letter-spacing: -0.02em;
+        line-height: 1.05;
       }}
       .score-pill {{
         display: inline-block;
         margin: 0;
         padding: 8px 12px;
         border-radius: 999px;
-        background: #18222d;
+        background: linear-gradient(135deg, var(--pill-bg), #263542);
         color: #fff;
         font-size: 0.86rem;
+        letter-spacing: 0.01em;
       }}
       .tag-row {{
         display: flex;
         flex-wrap: wrap;
         gap: 8px;
-        margin-bottom: 14px;
+        margin-bottom: 12px;
       }}
       .tag-pill {{
         display: inline-flex;
@@ -547,20 +580,40 @@ def render_brief_html(projects: list[dict[str, Any]], focus: dict[str, Any], loc
         padding: 6px 10px;
         border-radius: 999px;
         background: var(--tag);
-        color: var(--muted);
+        color: var(--tag-ink);
         font-size: 0.8rem;
+        border: 1px solid rgba(20, 32, 42, 0.04);
       }}
       .opportunity-card p {{
         margin: 0 0 12px;
-        line-height: 1.55;
+        line-height: 1.45;
         color: var(--muted);
+      }}
+      .setup-inline {{
+        margin-bottom: 12px;
+        font-size: 0.95rem;
+      }}
+      .compact-grid {{
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+        margin-bottom: 12px;
+      }}
+      .mini-block {{
+        padding: 10px 12px;
+        border-radius: 16px;
+        background: var(--panel);
+        border: 1px solid rgba(20, 32, 42, 0.05);
+      }}
+      .mini-block p {{
+        margin: 0;
       }}
       .card-block {{
         margin: 0 0 12px;
         padding: 12px 13px 11px;
         border-radius: 18px;
         background: var(--panel);
-        border: 1px solid rgba(24, 34, 45, 0.06);
+        border: 1px solid rgba(20, 32, 42, 0.06);
       }}
       .block-label {{
         display: inline-block;
@@ -573,6 +626,7 @@ def render_brief_html(projects: list[dict[str, Any]], focus: dict[str, Any], loc
       }}
       .card-links {{
         margin-top: 4px;
+        margin-bottom: 8px;
       }}
       .link-row {{
         display: flex;
@@ -584,15 +638,62 @@ def render_brief_html(projects: list[dict[str, Any]], focus: dict[str, Any], loc
         align-items: center;
         padding: 8px 12px;
         border-radius: 999px;
-        background: #fff;
-        border: 1px solid rgba(24, 34, 45, 0.08);
+        background: rgba(255,255,255,0.88);
+        border: 1px solid rgba(20, 32, 42, 0.08);
         color: var(--accent);
         text-decoration: none;
         font-weight: 600;
         font-size: 0.85rem;
+        transition: transform 140ms ease, border-color 140ms ease, background 140ms ease;
+      }}
+      .link-pill:hover {{
+        transform: translateY(-1px);
+        border-color: rgba(191, 91, 52, 0.2);
+        background: #fff;
       }}
       .link-pill.muted {{
         color: var(--muted);
+      }}
+      .detail-drawer {{
+        margin-top: 10px;
+        border-top: 1px solid rgba(20, 32, 42, 0.08);
+        padding-top: 10px;
+      }}
+      .detail-drawer summary {{
+        cursor: pointer;
+        color: var(--accent);
+        font-weight: 700;
+        font-size: 0.9rem;
+        list-style: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }}
+      .detail-drawer summary::before {{
+        content: "+";
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--accent);
+        font-size: 0.82rem;
+      }}
+      .detail-drawer[open] summary::before {{
+        content: "-";
+      }}
+      .detail-drawer summary::-webkit-details-marker {{
+        display: none;
+      }}
+      .detail-drawer[open] summary {{
+        margin-bottom: 10px;
+      }}
+      @media (min-width: 900px) {{
+        .compact-grid {{
+          grid-template-columns: 1.15fr 0.85fr;
+        }}
       }}
       @media (max-width: 640px) {{
         main {{
@@ -601,6 +702,9 @@ def render_brief_html(projects: list[dict[str, Any]], focus: dict[str, Any], loc
         .hero {{
           padding: 22px;
           border-radius: 22px;
+        }}
+        .opportunity-card {{
+          padding: 18px 16px 14px;
         }}
       }}
     </style>

@@ -17,6 +17,9 @@ from common import (
     latest_json_file_for_source,
     load_effective_yaml,
     output_dir_from_config,
+    project_actionability_score,
+    project_funding_evidence,
+    project_strong_participation_signals,
     read_json_file,
     state_dir_from_config,
     utc_now_iso,
@@ -75,6 +78,17 @@ def build_context_item(project: dict[str, Any], watchlist_map: dict[str, Any]) -
 def should_include_in_brief(project: dict[str, Any]) -> bool:
     name = str(project.get("project_name", "")).strip()
     if is_established_project(name):
+        return False
+    actionability = project_actionability_score(project)
+    funding = project_funding_evidence(project)
+    strong_participation = project_strong_participation_signals(project)
+    website_url = str(project.get("website_url") or "").strip()
+    x_url = str(project.get("x_url") or "").strip()
+    if actionability < 24 and not funding and not strong_participation:
+        return False
+    if len(project.get("source_ids", [])) == 1 and "surf_project_ai_news" in project.get("source_ids", []) and (not strong_participation or (not website_url and not x_url)):
+        return False
+    if len(project.get("source_ids", [])) == 1 and "github_trending_builders" in project.get("source_ids", []) and "/" in name and actionability < 28:
         return False
     return True
 

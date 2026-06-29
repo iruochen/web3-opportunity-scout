@@ -331,14 +331,147 @@ def _project_rank(project: dict[str, Any]) -> int | None:
     return extract_hot_rank(project.get("signals", []))
 
 
+def _project_source_ids(project: dict[str, Any]) -> list[str]:
+    values = project.get("source_ids", [])
+    if not isinstance(values, list):
+        return []
+    return _dedupe_preserve_order([str(item).strip() for item in values if str(item).strip()])
+
+
+def _joined_project_text(project: dict[str, Any]) -> str:
+    parts = [str(project.get("summary") or "")]
+    parts.extend(str(item) for item in project.get("signals", []))
+    parts.extend(str(item) for item in project.get("funding_signals", []))
+    return " ".join(parts).lower()
+
+
+def _keyword_hits(text: str, keywords: tuple[str, ...]) -> list[str]:
+    hits: list[str] = []
+    for keyword in keywords:
+        if keyword in text and keyword not in hits:
+            hits.append(keyword)
+    return hits
+
+
+def project_participation_signals(project: dict[str, Any]) -> list[str]:
+    text = _joined_project_text(project)
+    keywords = (
+        "waitlist",
+        "beta",
+        "testnet",
+        "devnet",
+        "points",
+        "quest",
+        "incentive",
+        "incentives",
+        "referral",
+        "whitelist",
+        "allowlist",
+        "ambassador",
+        "grant",
+        "grants",
+        "validator",
+        "liquidity mining",
+        "vault",
+        "staking",
+        "campaign",
+        "early access",
+        "mainnet launch",
+    )
+    return _keyword_hits(text, keywords)
+
+
+def project_strong_participation_signals(project: dict[str, Any]) -> list[str]:
+    strong = {
+        "waitlist",
+        "beta",
+        "testnet",
+        "devnet",
+        "points",
+        "quest",
+        "incentive",
+        "incentives",
+        "referral",
+        "whitelist",
+        "allowlist",
+        "ambassador",
+        "grant",
+        "grants",
+        "liquidity mining",
+        "early access",
+        "mainnet launch",
+    }
+    return [item for item in project_participation_signals(project) if item in strong]
+
+
+def project_funding_evidence(project: dict[str, Any]) -> list[str]:
+    direct = _project_funding_signals(project)
+    if direct:
+        return direct
+    investors = _project_investors(project)
+    if investors:
+        return investors
+    text = _joined_project_text(project)
+    keywords = ("seed round", "series a", "series b", "raised", "backed by", "investment round", "lead investor")
+    return _keyword_hits(text, keywords)
+
+
+def project_negative_signals(project: dict[str, Any]) -> list[str]:
+    text = _joined_project_text(project)
+    keywords = (
+        "没真新闻",
+        "没资金动静",
+        "复读",
+        "故事已经快讲完",
+        "no real news",
+        "no funding movement",
+        "no new information",
+        "narrative is fading",
+    )
+    return _keyword_hits(text, keywords)
+
+
+def project_actionability_score(project: dict[str, Any]) -> float:
+    participation = project_participation_signals(project)
+    strong_participation = project_strong_participation_signals(project)
+    funding = project_funding_evidence(project)
+    investors = _project_investors(project)
+    team = _project_team(project)
+    sources = _project_source_ids(project)
+    score = 0.0
+    score += min(len(strong_participation), 4) * 20.0
+    weak_participation = max(0, len(participation) - len(strong_participation))
+    score += min(weak_participation, 2) * 6.0
+    if funding:
+        score += 22.0
+    if investors:
+        score += 10.0
+    if team:
+        score += min(len(team), 3) * 4.0
+    if len(sources) >= 2:
+        score += 12.0 + min(len(sources) - 2, 2) * 4.0
+    if project_negative_signals(project):
+        score -= 20.0
+    return clamp(score, 0.0, 100.0)
+
+
 def infer_opportunity_thesis(project: dict[str, Any], locale: str = "en") -> list[str]:
     summary = _project_summary(project)
     tags = _project_tags(project)
     investors = _project_investors(project)
     team = _project_team(project)
     funding_signals = _project_funding_signals(project)
+    participation_signals = project_participation_signals(project)
+    strong_participation = project_strong_participation_signals(project)
+    source_ids = _project_source_ids(project)
     rank = _project_rank(project)
     theses: list[str] = []
+
+    if len(source_ids) >= 2:
+        if locale == "zh":
+            theses.append(f"它同时被 {len(source_ids)} 类来源命中，说明不是单点热度。")
+        else:
+            theses.append(f"It is showing up across {len(source_ids)} source types, which reduces single-feed noise.")
 
     if funding_signals:
         if locale == "zh":
@@ -352,7 +485,13 @@ def infer_opportunity_thesis(project: dict[str, Any], locale: str = "en") -> lis
         else:
             theses.append(f"Named backers are already visible: {joined}, which makes this more than a pure narrative mention.")
 
-    if rank is not None and rank <= 10:
+    if strong_participation:
+        if locale == "zh":
+            theses.append("已经出现可参与信号，重点不再是围观热度，而是尽快确认入口是否真实开放。")
+        else:
+            theses.append("There is already a visible participation surface, so the focus is confirming whether the access path is actually live.")
+
+    if rank is not None and rank <= 10 and not participation_signals and not funding_signals:
         if locale == "zh":
             theses.append(f"RootData 热度已经到前 {rank}，说明注意力在形成，但还没完全挤满。")
         else:
@@ -378,7 +517,17 @@ def infer_participation_angle(project: dict[str, Any], locale: str = "en") -> li
     summary = _project_summary(project).lower()
     investors = _project_investors(project)
     funding_signals = _project_funding_signals(project)
+    participation_signals = project_participation_signals(project)
+    strong_participation = project_strong_participation_signals(project)
     actions: list[str] = []
+
+    if strong_participation:
+        joined = ", ".join(strong_participation[:3])
+        actions.append(
+            f"先直接核查这几个已出现的参与线索：{joined}。"
+            if locale == "zh"
+            else f"Start by verifying the participation cues already visible: {joined}."
+        )
 
     if {"infra", "layer1", "layer2", "modular"} & tags or "blockchain" in summary or "network" in summary:
         actions.append(
@@ -448,6 +597,8 @@ def infer_priority_checks(project: dict[str, Any], locale: str = "en") -> list[s
     summary = _project_summary(project).lower()
     investors = _project_investors(project)
     funding_signals = _project_funding_signals(project)
+    participation_signals = project_participation_signals(project)
+    strong_participation = project_strong_participation_signals(project)
     checks: list[str] = []
 
     if funding_signals or investors:
@@ -467,6 +618,12 @@ def infer_priority_checks(project: dict[str, Any], locale: str = "en") -> list[s
             "确认产品是不是已经开放候补、beta、积分、流动性挖矿或第一批金库权限。"
             if locale == "zh"
             else "Confirm whether waitlist, beta, points, liquidity mining, or first-wave vault access is already open."
+        )
+    if strong_participation:
+        checks.append(
+            "确认这些参与入口是不是当前真的可用，而不是只是文案或社区预告。"
+            if locale == "zh"
+            else "Confirm whether those participation surfaces are actually live rather than just mentioned in copy or community chatter."
         )
     if {"ai", "fhe", "privacy", "r&d"} & tags or "research" in summary:
         checks.append(

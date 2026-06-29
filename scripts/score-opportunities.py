@@ -12,10 +12,16 @@ from common import (
     default_event_memory,
     default_watchlist,
     ensure_dir,
+    is_established_project,
     latest_json_file,
     latest_json_file_for_source,
     load_effective_yaml,
     output_dir_from_config,
+    project_actionability_score,
+    project_funding_evidence,
+    project_negative_signals,
+    project_participation_signals,
+    project_strong_participation_signals,
     read_json_file,
     state_dir_from_config,
     utc_now_iso,
@@ -60,10 +66,20 @@ def compute_traction(project: dict[str, Any]) -> float:
     rank = extract_rank(project)
     confidence = float(project.get("confidence", 0.0))
     tags = project.get("tags", [])
+    participation = project_participation_signals(project)
+    strong_participation = project_strong_participation_signals(project)
+    funding = project_funding_evidence(project)
+    negative = project_negative_signals(project)
     base = 52.0 + confidence * 20.0
     if rank is not None:
-        base += max(0, 25 - min(rank, 25)) * 1.1
+        base += max(0, 20 - min(rank, 20)) * 0.55
     base += min(len(tags), 4) * 2.5
+    base += min(len(strong_participation), 3) * 8.0
+    base += max(0, min(len(participation) - len(strong_participation), 2)) * 2.0
+    if funding:
+        base += 10.0
+    if negative:
+        base -= 14.0
     return clamp(base, 20.0, 95.0)
 
 
@@ -71,15 +87,38 @@ def compute_asymmetry(project: dict[str, Any], focus: dict[str, Any]) -> float:
     rank = extract_rank(project)
     tags = {str(tag).strip().lower() for tag in project.get("tags", [])}
     sectors = {str(item).strip().lower() for item in focus.get("sectors", [])}
+    participation = project_participation_signals(project)
+    strong_participation = project_strong_participation_signals(project)
+    funding = project_funding_evidence(project)
+    source_count = len(project.get("source_ids", []))
 
-    base = 55.0
+    base = 48.0
     if rank is not None:
-        base += max(0, 18 - min(rank, 18)) * 1.4
+        base += max(0, 18 - min(rank, 18)) * 0.8
     if tags & sectors:
         base += 12.0
     if "infra" in tags or "devtools" in tags or "ai x crypto" in tags:
         base += 6.0
+    if strong_participation:
+        base += 18.0
+    elif participation:
+        base += 6.0
+    if funding:
+        base += 10.0
+    if source_count >= 2:
+        base += 8.0 + min(source_count - 2, 2) * 3.0
     return clamp(base, 25.0, 94.0)
+
+
+def compute_viability(project: dict[str, Any]) -> float:
+    actionability = project_actionability_score(project)
+    negative = project_negative_signals(project)
+    base = actionability
+    if is_established_project(str(project.get("canonical_name") or project.get("project_name") or "")):
+        base -= 35.0
+    if negative:
+        base -= 18.0
+    return clamp(base, 0.0, 95.0)
 
 
 def label_for_score(score: float) -> str:
@@ -104,8 +143,19 @@ def label_for_score_zh(score: float) -> str:
 
 def build_reasoning(project: dict[str, Any], novelty: float, traction: float, asymmetry: float) -> list[str]:
     reasons = []
+    participation = project_participation_signals(project)
+    strong_participation = project_strong_participation_signals(project)
+    funding = project_funding_evidence(project)
+    source_count = len(project.get("source_ids", []))
+    negative = project_negative_signals(project)
     rank = extract_rank(project)
-    if rank is not None:
+    if funding:
+        reasons.append("Funding evidence is visible and can translate into near-term product or incentive rollout.")
+    if strong_participation:
+        reasons.append("There are already participation cues worth verifying, such as access, beta, or incentives.")
+    if source_count >= 2:
+        reasons.append(f"This project is supported by {source_count} source types rather than a single discovery feed.")
+    if rank is not None and not funding and not participation:
         reasons.append(f"RootData hot list rank is {rank}.")
     if novelty >= 80:
         reasons.append("This project looks newly surfaced in current memory.")
@@ -115,6 +165,8 @@ def build_reasoning(project: dict[str, Any], novelty: float, traction: float, as
         reasons.append("Current source signals suggest real attention or execution momentum.")
     if asymmetry >= 75:
         reasons.append("The upside may still be underpriced relative to current visibility.")
+    if negative:
+        reasons.append("Some current chatter looks noisy, so actionability should be confirmed before upgrading conviction.")
     return reasons
 
 
@@ -202,7 +254,8 @@ def main() -> int:
         novelty = round(compute_novelty(project, memory_projects), 1)
         traction = round(compute_traction(project), 1)
         asymmetry = round(compute_asymmetry(project, focus), 1)
-        score = round(novelty * 0.35 + traction * 0.40 + asymmetry * 0.25, 1)
+        viability = round(compute_viability(project), 1)
+        score = round(novelty * 0.20 + traction * 0.28 + asymmetry * 0.22 + viability * 0.30, 1)
         label = label_for_score(score)
         scored_projects.append(
             {
@@ -224,6 +277,7 @@ def main() -> int:
                 "novelty_score": novelty,
                 "traction_score": traction,
                 "asymmetry_score": asymmetry,
+                "viability_score": viability,
                 "opportunity_score": score,
                 "label": label,
                 "reasoning": build_reasoning(project, novelty, traction, asymmetry),

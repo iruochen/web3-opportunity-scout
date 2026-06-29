@@ -22,6 +22,8 @@ from scripts.common import (
     load_dotenv_file,
     load_run_state,
     latest_json_file_for_source,
+    project_actionability_score,
+    project_participation_signals,
     start_pipeline_run,
     update_pipeline_stage,
     latest_json_file,
@@ -77,6 +79,16 @@ class InferenceTests(unittest.TestCase):
         results = infer_validation_sources(project)
         self.assertIn("RootData project detail page", results)
         self.assertIn("DeFiLlama or on-chain dashboards", results)
+
+    def test_actionability_prefers_participation_and_funding_evidence(self) -> None:
+        project = {
+            "summary": "Open beta waitlist with points campaign after seed funding.",
+            "signals": ["Funding signal: Seed round closed", "Tags: DeFi"],
+            "investors": ["Firefly"],
+            "source_ids": ["rootdata_projects", "surf_project_ai_news"],
+        }
+        self.assertIn("waitlist", project_participation_signals(project))
+        self.assertGreater(project_actionability_score(project), 40.0)
 
 
 class RunStateTests(unittest.TestCase):
