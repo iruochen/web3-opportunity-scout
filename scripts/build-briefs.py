@@ -42,6 +42,41 @@ def html_escape(value: str) -> str:
     )
 
 
+def localized_items(project: dict[str, Any], field_name: str, locale: str) -> list[str]:
+    if locale == "zh":
+        localized = project.get(f"{field_name}_zh", [])
+        if isinstance(localized, list) and localized:
+            return [str(item).strip() for item in localized if str(item).strip()]
+    values = project.get(field_name, [])
+    if isinstance(values, list):
+        return [str(item).strip() for item in values if str(item).strip()]
+    return []
+
+
+def build_fact_lines(project: dict[str, Any], locale: str) -> list[str]:
+    facts: list[str] = []
+    investors = [str(item).strip() for item in project.get("investors", []) if str(item).strip()]
+    funding_signals = [str(item).strip() for item in project.get("funding_signals", []) if str(item).strip()]
+    team = project.get("team", []) if isinstance(project.get("team", []), list) else []
+    founded = str(project.get("founded") or "").strip()
+    signals = [str(item).strip() for item in project.get("supporting_signals", []) if str(item).strip()]
+
+    if funding_signals:
+        facts.append(("融资线索: " if locale == "zh" else "Funding: ") + funding_signals[0])
+    elif investors:
+        facts.append(("投资方: " if locale == "zh" else "Backers: ") + ", ".join(investors[:4]))
+    if team:
+        lead_names = ", ".join(str(item.get("name") or "").strip() for item in team[:3] if str(item.get("name") or "").strip())
+        prefix = "团队: " if locale == "zh" else "Team: "
+        suffix = f" ({len(team)} named)" if locale != "zh" else f"（已识别 {len(team)} 位具名成员）"
+        facts.append(prefix + (lead_names or "n/a") + suffix)
+    if founded:
+        facts.append(("成立时间: " if locale == "zh" else "Founded: ") + founded)
+    if signals:
+        facts.append(("热度/信号: " if locale == "zh" else "Signals: ") + " | ".join(signals[:2]))
+    return facts[:4]
+
+
 def render_brief_en(projects: list[dict[str, Any]], focus: dict[str, Any]) -> str:
     lines = ["# Opportunity Brief", ""]
     lines.append(f"- Focus chains: {', '.join(focus.get('chains', [])) or 'global'}")
@@ -50,13 +85,17 @@ def render_brief_en(projects: list[dict[str, Any]], focus: dict[str, Any]) -> st
     lines.append("## Top Opportunities")
     lines.append("")
     for index, project in enumerate(projects, start=1):
+        project_summary = project.get("summary") or "n/a"
+        action_premise = " ".join(localized_items(project, "opportunity_thesis", "en")) or "Only actionable when a concrete participation surface is live."
+        fact_lines = build_fact_lines(project, "en")
         lines.append(f"### {index}. {project['project_name']}")
         lines.append(f"- Score: {project['score']} ({project['label']})")
-        lines.append(f"- Why it matters: {' '.join(project.get('reasoning', []))}")
-        lines.append(f"- Signals: {' | '.join(project.get('supporting_signals', [])) or 'n/a'}")
-        lines.append(f"- Participation angle: {' '.join(project.get('participation_angle', []))}")
-        lines.append(f"- Suggested validation sources: {', '.join(project.get('validation_sources', []))}")
-        lines.append(f"- Suggested next check: {project['follow_up_questions'][2]}")
+        lines.append(f"- Project setup: {project_summary}")
+        lines.append(f"- Why track now: {action_premise}")
+        lines.append(f"- Participation angle: {' '.join(localized_items(project, 'participation_angle', 'en'))}")
+        lines.append(f"- Hard facts: {' | '.join(fact_lines) or 'n/a'}")
+        lines.append(f"- Priority checks: {' '.join(localized_items(project, 'priority_checks', 'en'))}")
+        lines.append(f"- Validation sources: {', '.join(localized_items(project, 'validation_sources', 'en'))}")
         lines.append(f"- URL: {project.get('project_url') or 'n/a'}")
         lines.append("")
     return "\n".join(lines).strip() + "\n"
@@ -64,25 +103,35 @@ def render_brief_en(projects: list[dict[str, Any]], focus: dict[str, Any]) -> st
 
 def translate_reason_zh(reason: str) -> str:
     mapping = {
-        "This project looks newly surfaced in current memory.": "这个项目在当前记忆里看起来是新近浮现出来的。",
-        "Current source signals suggest real attention or execution momentum.": "当前来源信号显示它已经有了真实关注度或执行动能。",
-        "The upside may still be underpriced relative to current visibility.": "相对于现在的可见度，它的上行空间可能仍然被低估。",
+        "Already ranking near the top of RootData, so attention is forming before the market is fully crowded.": "它已经进入 RootData 前排，说明关注度正在形成，但还没有完全挤满。",
+        "Already appearing on RootData, which suggests early but visible market attention.": "它已经进入 RootData 视野，说明市场已经开始关注，但还不算完全拥挤。",
+        "This project is confirmed across multiple source types, which lowers single-feed noise.": "它被多类来源同时捕捉到，说明不是单一信息流噪音。",
+        "Infra projects often expose the earliest participation paths through testnets, validators, grants, or ecosystem programs.": "基础设施类项目通常最早会通过测试网、验证者、资助或生态计划开放参与窗口。",
+        "DeFi projects often create usable early angles through points, beta access, liquidity programs, or first-wave product usage.": "DeFi 项目常见的早期参与角度包括积分、内测资格、流动性激励和第一波产品使用。",
+        "AI or research-heavy teams usually reward early contributors through dev communities, integrations, or technical pilot programs.": "AI 或研究型团队更容易通过开发者社区、集成合作或技术试点释放早期位置。",
+        "Consumer-facing products are most attractive when waitlists, referrals, and onboarding campaigns appear before broad distribution.": "面向用户的产品如果在大规模扩散前就开放候补、邀请或拉新机制，往往更值得提前参与。",
+        "Recent financing can accelerate product shipping and ecosystem incentive rollout.": "如果它刚有融资，往往意味着产品推进和生态激励会加速落地。",
+        "A visible testnet usually means there is a concrete near-term participation window rather than a pure narrative trade.": "如果已经出现测试网，通常意味着这是可参与的真实窗口，而不只是讲故事。",
+        "Launch-stage signals matter because the best participation edge often sits just before or just after release.": "临近上线阶段很关键，因为最佳参与边际往往就在发布前后。",
+        "The summary already hints at an incentive surface, which makes this more actionable than a pure news mention.": "摘要里已经出现激励面信号，这种机会比纯新闻更可操作。",
+        "This project is worth tracking only if it opens a concrete participation surface soon, such as testnet, waitlist, liquidity, or ecosystem access.": "这类项目只有在即将开放测试网、候补、流动性或生态入口时，才真正值得跟。",
     }
     if reason in mapping:
         return mapping[reason]
-    if reason.startswith("RootData hot list rank is "):
-        rank = reason.removeprefix("RootData hot list rank is ").rstrip(".")
-        return f"RootData 热榜当前排名第 {rank}。"
     return reason
 
 
-def translate_question_zh(question: str) -> str:
+def translate_check_zh(text: str) -> str:
     mapping = {
-        "Does this project show evidence beyond current hot-list visibility?": "这个项目是否有超出热榜曝光之外的真实证据？",
-        "Is there a concrete participation angle for the configured user profile?": "对于当前配置的用户画像，是否存在明确的参与角度？",
-        "What source should be checked next for validation?": "下一步应该补查哪个来源来继续验证？",
+        "Verify whether testnet, devnet, validator, or ecosystem grant access is already live.": "先确认测试网、开发网、验证者计划或生态资助入口是否已经开放。",
+        "Verify whether product beta, points, vault access, or liquidity incentives are already open.": "先确认产品内测、积分、金库权限或流动性激励是否已经开放。",
+        "Verify whether there is a developer program, technical demo, or partner integration you can join early.": "先确认有没有开发者计划、技术演示或合作接入可以提前参与。",
+        "Verify the financing stage, lead investors, and what milestone the raise is supposed to unlock next.": "先确认融资轮次、领投方，以及这笔钱接下来会推动什么里程碑。",
+        "Cross-check the RootData detail page for investor, ecosystem, and related project context.": "去 RootData 详情页补查投资方、生态归属和相关项目关系。",
+        "Check GitHub activity to confirm this is shipping work, not just a narrative mention.": "去看 GitHub 活跃度，确认它是真的在交付，而不是单纯叙事热度。",
+        "Verify the first concrete participation surface before treating this as an actionable opportunity.": "在把它当成可执行机会前，先确认第一层真实参与入口。",
     }
-    return mapping.get(question, question)
+    return mapping.get(text, text)
 
 
 def label_zh(label: str) -> str:
@@ -95,6 +144,32 @@ def label_zh(label: str) -> str:
     return mapping.get(label, label)
 
 
+def translate_participation_zh(text: str) -> str:
+    mapping = {
+        "Track testnet access, validator programs, grants, and ecosystem builder campaigns.": "重点盯测试网入口、验证者计划、资助项目和生态建设者活动。",
+        "Look for developer previews, technical communities, research pilots, or integration programs.": "重点找开发者预览、技术社区、研究试点或集成计划。",
+        "Monitor product beta access, liquidity programs, points systems, and early user incentives.": "重点盯产品内测资格、流动性激励、积分体系和早期用户激励。",
+        "Watch for waitlists, referral loops, ambassador programs, and onboarding campaigns.": "重点盯候补名单、邀请裂变、 ambassador 计划和拉新活动。",
+        "Check whether the team has already exposed points, quests, or airdrop-style incentive mechanics.": "确认团队是否已经放出积分、任务或空投式激励机制。",
+        "Use the financing milestone as a timing signal and watch what product or ecosystem program follows next.": "把融资节点当成时间信号，重点看接下来落什么产品或生态计划。",
+        "Check official channels for launch updates, beta access, and any program that creates a concrete first-mover edge.": "去官方渠道确认上线、内测资格和任何能形成先手优势的参与计划。",
+    }
+    return mapping.get(text, text)
+
+
+def translate_validation_source_zh(text: str) -> str:
+    mapping = {
+        "Official announcements": "官方公告",
+        "Project X/Twitter account": "项目官方 X/Twitter",
+        "GitHub activity": "GitHub 活跃度",
+        "DeFiLlama listings or TVL changes": "DeFiLlama 收录和 TVL 变化",
+        "Ecosystem launch posts or developer documentation": "生态上线公告或开发者文档",
+        "Research threads, technical blog posts, or demo releases": "研究线程、技术博客或 demo 发布",
+        "RootData project detail page": "RootData 项目详情页",
+    }
+    return mapping.get(text, text)
+
+
 def render_brief_zh(projects: list[dict[str, Any]], focus: dict[str, Any]) -> str:
     lines = ["# 机会简报", ""]
     lines.append(f"- 关注链: {', '.join(focus.get('chains', [])) or 'global'}")
@@ -103,13 +178,17 @@ def render_brief_zh(projects: list[dict[str, Any]], focus: dict[str, Any]) -> st
     lines.append("## 核心机会")
     lines.append("")
     for index, project in enumerate(projects, start=1):
+        project_summary = project.get("summary") or "n/a"
+        action_premise = " ".join(localized_items(project, "opportunity_thesis", "zh")) or "只有在真实参与入口已经开放时才值得上手。"
+        fact_lines = build_fact_lines(project, "zh")
         lines.append(f"### {index}. {project['project_name']}")
         lines.append(f"- 评分: {project['score']} ({label_zh(project['label'])})")
-        lines.append(f"- 为什么值得看: {' '.join(translate_reason_zh(item) for item in project.get('reasoning', []))}")
-        lines.append(f"- 关键线索: {' | '.join(project.get('supporting_signals', [])) or 'n/a'}")
-        lines.append(f"- 参与角度: {' '.join(project.get('participation_angle', []))}")
-        lines.append(f"- 建议补查来源: {', '.join(project.get('validation_sources', []))}")
-        lines.append(f"- 下一步建议: {translate_question_zh(project['follow_up_questions'][2])}")
+        lines.append(f"- 项目定位: {project_summary}")
+        lines.append(f"- 为什么值得跟: {action_premise}")
+        lines.append(f"- 参与动作: {' '.join(localized_items(project, 'participation_angle', 'zh'))}")
+        lines.append(f"- 硬线索: {' | '.join(fact_lines) or 'n/a'}")
+        lines.append(f"- 优先补查: {' '.join(localized_items(project, 'priority_checks', 'zh'))}")
+        lines.append(f"- 建议补查来源: {', '.join(localized_items(project, 'validation_sources', 'zh'))}")
         lines.append(f"- 链接: {project.get('project_url') or 'n/a'}")
         lines.append("")
     return "\n".join(lines).strip() + "\n"
@@ -126,21 +205,27 @@ def render_thesis_en(project: dict[str, Any]) -> str:
             "",
             "## Why This Looks Early",
             "",
-            f"{' '.join(project.get('reasoning', []))}",
+            f"{' '.join(localized_items(project, 'opportunity_thesis', 'en'))}",
             "",
-            "## Supporting Signals",
+            "## Participation Angle",
+            "",
+            *[f"- {item}" for item in localized_items(project, "participation_angle", "en")],
+            "",
+            "## Hard Facts",
+            "",
+            *[f"- {item}" for item in build_fact_lines(project, "en")],
+            "",
+            "## Evidence",
             "",
             *[f"- {signal}" for signal in project.get("supporting_signals", [])],
             "",
-            "## Suggested Validation",
+            "## Priority Checks",
             "",
-            "- Participation angle:",
-            *[f"  - {item}" for item in project.get("participation_angle", [])],
+            *[f"- {item}" for item in localized_items(project, "priority_checks", "en")],
             "",
-            "- Suggested sources:",
-            *[f"  - {item}" for item in project.get("validation_sources", [])],
+            "## Validation Sources",
             "",
-            *[f"- {question}" for question in project.get("follow_up_questions", [])],
+            *[f"- {item}" for item in localized_items(project, "validation_sources", "en")],
             "",
         ]
     ).strip() + "\n"
@@ -157,21 +242,27 @@ def render_thesis_zh(project: dict[str, Any]) -> str:
             "",
             "## 为什么这可能还处于早期",
             "",
-            f"{' '.join(translate_reason_zh(item) for item in project.get('reasoning', []))}",
+            f"{' '.join(localized_items(project, 'opportunity_thesis', 'zh'))}",
+            "",
+            "## 参与角度",
+            "",
+            *[f"- {item}" for item in localized_items(project, "participation_angle", "zh")],
+            "",
+            "## 硬线索",
+            "",
+            *[f"- {item}" for item in build_fact_lines(project, "zh")],
             "",
             "## 支撑线索",
             "",
             *[f"- {signal}" for signal in project.get("supporting_signals", [])],
             "",
-            "## 建议继续验证的问题",
+            "## 优先补查",
             "",
-            "- 参与角度：",
-            *[f"  - {item}" for item in project.get("participation_angle", [])],
+            *[f"- {item}" for item in localized_items(project, "priority_checks", "zh")],
             "",
-            "- 建议补查来源：",
-            *[f"  - {item}" for item in project.get("validation_sources", [])],
+            "## 建议补查来源",
             "",
-            *[f"- {translate_question_zh(question)}" for question in project.get("follow_up_questions", [])],
+            *[f"- {item}" for item in localized_items(project, "validation_sources", "zh")],
             "",
         ]
     ).strip() + "\n"
@@ -184,24 +275,24 @@ def render_project_cards_html(projects: list[dict[str, Any]], locale: str) -> st
         score = html_escape(str(project["score"]))
         label = html_escape(label_zh(project["label"]) if locale == "zh" else project["label"])
         url = html_escape(project.get("project_url") or "#")
-        reasoning_items = project.get("reasoning", [])
-        reasoning = " ".join(
-            translate_reason_zh(item) if locale == "zh" else item
-            for item in reasoning_items
-        )
         signals = project.get("supporting_signals", [])
-        participation = project.get("participation_angle", [])
-        next_check = (
-            translate_question_zh(project["follow_up_questions"][2])
-            if locale == "zh"
-            else project["follow_up_questions"][2]
-        )
+        participation = localized_items(project, "participation_angle", locale)
+        checks = localized_items(project, "priority_checks", locale)
+        primary_check = checks[0] if checks else "n/a"
         score_label = "评分" if locale == "zh" else "Score"
-        why_label = "为什么值得看" if locale == "zh" else "Why it matters"
-        signal_label = "关键线索" if locale == "zh" else "Signals"
-        angle_label = "参与角度" if locale == "zh" else "Participation angle"
-        next_label = "下一步建议" if locale == "zh" else "Suggested next check"
+        project_setup = project.get("summary") or "n/a"
+        action_premise = (
+            " ".join(localized_items(project, "opportunity_thesis", "zh")) or "只有在真实参与入口已经开放时才值得上手。"
+            if locale == "zh"
+            else (" ".join(localized_items(project, "opportunity_thesis", "en")) or "Only actionable when a concrete participation surface is live.")
+        )
+        setup_label = "项目定位" if locale == "zh" else "Project setup"
+        why_label = "为什么值得跟" if locale == "zh" else "Why track now"
+        angle_label = "参与动作" if locale == "zh" else "Participation angle"
+        signal_label = "硬线索" if locale == "zh" else "Hard facts"
+        next_label = "优先补查" if locale == "zh" else "Priority check"
         link_label = "项目链接" if locale == "zh" else "Project link"
+        fact_lines = build_fact_lines(project, locale)
 
         cards.append(
             "\n".join(
@@ -210,10 +301,11 @@ def render_project_cards_html(projects: list[dict[str, Any]], locale: str) -> st
                     f'  <div class="card-rank">{index:02d}</div>',
                     f"  <h2>{title}</h2>",
                     f'  <p class="score-pill">{score_label}: {score} · {label}</p>',
-                    f"  <p><strong>{why_label}:</strong> {html_escape(reasoning)}</p>",
-                    f"  <p><strong>{signal_label}:</strong> {html_escape(' | '.join(signals) or 'n/a')}</p>",
-                    f"  <p><strong>{angle_label}:</strong> {html_escape(' '.join(participation))}</p>",
-                    f"  <p><strong>{next_label}:</strong> {html_escape(next_check)}</p>",
+                    f'  <div class="card-block"><span class="block-label">{setup_label}</span><p>{html_escape(project_setup)}</p></div>',
+                    f'  <div class="card-block"><span class="block-label">{why_label}</span><p>{html_escape(action_premise)}</p></div>',
+                    f'  <div class="card-block"><span class="block-label">{angle_label}</span><p>{html_escape(" ".join(participation) or "n/a")}</p></div>',
+                    f'  <div class="card-block"><span class="block-label">{signal_label}</span><p>{html_escape(" | ".join(fact_lines) or "n/a")}</p></div>',
+                    f'  <div class="card-block"><span class="block-label">{next_label}</span><p>{html_escape(primary_check)}</p></div>',
                     f'  <p><a href="{url}" target="_blank" rel="noopener noreferrer">{link_label}</a></p>',
                     "</article>",
                 ]
@@ -226,9 +318,9 @@ def render_brief_html(projects: list[dict[str, Any]], focus: dict[str, Any], loc
     is_zh = locale == "zh"
     title = "Web3 Early Opportunity Brief" if not is_zh else "Web3 早期机会简报"
     subtitle = (
-        "A compact scouting digest for scheduled pushes and operator review."
+        "Action-oriented early opportunity cards for scheduling, review, and follow-through."
         if not is_zh
-        else "适合定时推送和人工复核的一页式机会摘要。"
+        else "更偏执行和参与视角的一页式早期机会卡片。"
     )
     focus_chains = format_focus_list(focus.get("chains", []), "global")
     focus_sectors = format_focus_list(focus.get("sectors", []), "general")
@@ -255,6 +347,7 @@ def render_brief_html(projects: list[dict[str, Any]], focus: dict[str, Any], loc
         --card: rgba(255, 255, 255, 0.86);
         --border: rgba(24, 34, 45, 0.08);
         --shadow: 0 24px 70px rgba(24, 34, 45, 0.08);
+        --panel: #fffaf4;
       }}
       * {{ box-sizing: border-box; }}
       body {{
@@ -313,13 +406,13 @@ def render_brief_html(projects: list[dict[str, Any]], focus: dict[str, Any], loc
       }}
       .opportunities {{
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        gap: 18px;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 20px;
         margin-top: 26px;
       }}
       .opportunity-card {{
         position: relative;
-        padding: 24px 20px 20px;
+        padding: 24px 20px 18px;
         overflow: hidden;
       }}
       .card-rank {{
@@ -336,11 +429,11 @@ def render_brief_html(projects: list[dict[str, Any]], focus: dict[str, Any], loc
       }}
       .opportunity-card h2 {{
         margin: 0 0 8px;
-        font-size: 1.45rem;
+        font-size: 1.5rem;
       }}
       .score-pill {{
         display: inline-block;
-        margin: 0 0 12px;
+        margin: 0 0 14px;
         padding: 7px 12px;
         border-radius: 999px;
         background: #18222d;
@@ -352,8 +445,21 @@ def render_brief_html(projects: list[dict[str, Any]], focus: dict[str, Any], loc
         line-height: 1.55;
         color: var(--muted);
       }}
-      .opportunity-card strong {{
-        color: var(--ink);
+      .card-block {{
+        margin: 0 0 12px;
+        padding: 12px 12px 10px;
+        border-radius: 16px;
+        background: var(--panel);
+        border: 1px solid rgba(24, 34, 45, 0.06);
+      }}
+      .block-label {{
+        display: inline-block;
+        margin-bottom: 6px;
+        font-size: 0.76rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--accent);
       }}
       .opportunity-card a {{
         color: var(--accent);

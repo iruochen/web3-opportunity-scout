@@ -34,6 +34,78 @@ def pick_latest_observed(records: list[dict[str, Any]]) -> str | None:
     return sorted(timestamps)[-1] if timestamps else None
 
 
+def pick_best_summary(records: list[dict[str, Any]]) -> str | None:
+    candidates = [str(record.get("summary") or "").strip() for record in records if str(record.get("summary") or "").strip()]
+    if not candidates:
+        return None
+    return sorted(candidates, key=lambda item: (len(item), item))[-1]
+
+
+def first_non_empty(records: list[dict[str, Any]], field_name: str) -> Any:
+    for record in records:
+        value = record.get(field_name)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+        if value not in (None, [], {}, ""):
+            return value
+    return None
+
+
+def merge_people(records: list[dict[str, Any]]) -> list[dict[str, str]]:
+    results: list[dict[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for record in records:
+        team = record.get("team", [])
+        if not isinstance(team, list):
+            continue
+        for member in team:
+            if not isinstance(member, dict):
+                continue
+            name = str(member.get("name") or "").strip()
+            role = str(member.get("role") or "").strip()
+            key = (name, role)
+            if not name or key in seen:
+                continue
+            seen.add(key)
+            results.append({"name": name, "role": role})
+    return results
+
+
+def merge_strings(records: list[dict[str, Any]], field_name: str) -> list[str]:
+    values: list[str] = []
+    for record in records:
+        items = record.get(field_name, [])
+        if not isinstance(items, list):
+            continue
+        for item in items:
+            text = str(item).strip()
+            if text and text not in values:
+                values.append(text)
+    return values
+
+
+def merge_news_links(records: list[dict[str, Any]]) -> list[dict[str, str]]:
+    values: list[dict[str, str]] = []
+    seen_urls: set[str] = set()
+    for record in records:
+        raw_ref = record.get("raw_ref", {})
+        if not isinstance(raw_ref, dict):
+            continue
+        news_links = raw_ref.get("news_links", [])
+        if not isinstance(news_links, list):
+            continue
+        for item in news_links:
+            if not isinstance(item, dict):
+                continue
+            url = str(item.get("url") or "").strip()
+            title = str(item.get("title") or "").strip()
+            if not url or url in seen_urls:
+                continue
+            seen_urls.add(url)
+            values.append({"title": title, "url": url})
+    return values
+
+
 def merge_group(entity_key: str, records: list[dict[str, Any]], source_id: str) -> dict[str, Any]:
     primary = records[0]
     tags: list[str] = []
@@ -60,12 +132,19 @@ def merge_group(entity_key: str, records: list[dict[str, Any]], source_id: str) 
         "canonical_name": primary.get("project_name"),
         "aliases": aliases,
         "source_ids": sorted({str(record.get("source_id")) for record in records}),
-        "project_url": primary.get("project_url"),
-        "summary": primary.get("summary"),
+        "project_url": first_non_empty(records, "project_url"),
+        "website_url": first_non_empty(records, "website_url"),
+        "x_url": first_non_empty(records, "x_url"),
+        "summary": pick_best_summary(records) or primary.get("summary"),
         "category": primary.get("category", "discovery"),
         "chains": primary.get("chains", []),
         "tags": tags,
         "signals": signals,
+        "founded": first_non_empty(records, "founded"),
+        "team": merge_people(records),
+        "investors": merge_strings(records, "investors"),
+        "funding_signals": merge_strings(records, "funding_signals"),
+        "news_links": merge_news_links(records),
         "confidence": max(float(record.get("confidence", 0.0)) for record in records),
         "observed_at": pick_latest_observed(records),
         "record_count": len(records),

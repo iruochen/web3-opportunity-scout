@@ -57,15 +57,26 @@ class DotenvTests(unittest.TestCase):
 
 
 class InferenceTests(unittest.TestCase):
-    def test_participation_angle_infers_defi_and_ai(self) -> None:
-        results = infer_participation_angle(["DeFi", "AI"], "consumer network")
-        self.assertTrue(any("liquidity programs" in item for item in results))
+    def test_participation_angle_uses_project_facts(self) -> None:
+        project = {
+            "tags": ["DeFi", "AI"],
+            "summary": "consumer trading network",
+            "investors": ["Firefly"],
+        }
+        results = infer_participation_angle(project)
+        self.assertTrue(any("liquidity incentives" in item for item in results))
         self.assertTrue(any("developer previews" in item for item in results))
+        self.assertTrue(any("financing event" in item for item in results))
 
     def test_validation_sources_include_rootdata_and_defi(self) -> None:
-        results = infer_validation_sources(["DeFi", "Layer1"], ["rootdata_projects"])
+        project = {
+            "tags": ["DeFi", "Layer1"],
+            "source_ids": ["rootdata_projects"],
+            "website_url": "https://example.com",
+        }
+        results = infer_validation_sources(project)
         self.assertIn("RootData project detail page", results)
-        self.assertIn("DeFiLlama listings or TVL changes", results)
+        self.assertIn("DeFiLlama or on-chain dashboards", results)
 
 
 class RunStateTests(unittest.TestCase):

@@ -8,8 +8,11 @@ from typing import Any
 from common import (
     ROOT,
     ensure_dir,
+    infer_opportunity_thesis,
     infer_participation_angle,
+    infer_priority_checks,
     infer_validation_sources,
+    is_established_project,
     latest_json_file,
     latest_json_file_for_source,
     load_effective_yaml,
@@ -33,29 +36,45 @@ def build_context_item(project: dict[str, Any], watchlist_map: dict[str, Any]) -
     watch = watchlist_map.get(project["entity_key"], {})
     tags = project.get("tags", [])
     source_ids = project.get("source_ids", [])
+    summary = project.get("summary", "")
+    signals = project.get("signals", [])[:4]
     return {
         "entity_key": project["entity_key"],
         "project_name": project["project_name"],
         "project_url": project.get("project_url"),
-        "summary": project.get("summary"),
+        "website_url": project.get("website_url"),
+        "x_url": project.get("x_url"),
+        "summary": summary,
         "score": project.get("opportunity_score"),
         "label": project.get("label"),
-        "supporting_signals": project.get("signals", [])[:4],
+        "supporting_signals": signals,
         "tags": tags[:6],
-        "reasoning": project.get("reasoning", []),
-        "participation_angle": infer_participation_angle(tags, project.get("summary", "")),
-        "validation_sources": infer_validation_sources(tags, source_ids),
+        "founded": project.get("founded"),
+        "team": project.get("team", []),
+        "investors": project.get("investors", []),
+        "funding_signals": project.get("funding_signals", []),
+        "news_links": project.get("news_links", []),
+        "opportunity_thesis": infer_opportunity_thesis(project, locale="en"),
+        "opportunity_thesis_zh": infer_opportunity_thesis(project, locale="zh"),
+        "participation_angle": infer_participation_angle(project, locale="en"),
+        "participation_angle_zh": infer_participation_angle(project, locale="zh"),
+        "validation_sources": infer_validation_sources(project, locale="en"),
+        "validation_sources_zh": infer_validation_sources(project, locale="zh"),
+        "priority_checks": infer_priority_checks(project, locale="en"),
+        "priority_checks_zh": infer_priority_checks(project, locale="zh"),
         "known_state": {
             "already_in_watchlist": bool(watch),
             "watchlist_score": watch.get("opportunity_score"),
             "last_updated_at": watch.get("updated_at"),
         },
-        "follow_up_questions": [
-            "Does this project show evidence beyond current hot-list visibility?",
-            "Is there a concrete participation angle for the configured user profile?",
-            "What source should be checked next for validation?"
-        ],
     }
+
+
+def should_include_in_brief(project: dict[str, Any]) -> bool:
+    name = str(project.get("project_name", "")).strip()
+    if is_established_project(name):
+        return False
+    return True
 
 
 def main() -> int:
@@ -80,7 +99,8 @@ def main() -> int:
         if isinstance(item, dict) and item.get("entity_key")
     }
 
-    selected = [build_context_item(project, watchlist_map) for project in projects[: args.top]]
+    filtered_projects = [project for project in projects if should_include_in_brief(project)]
+    selected = [build_context_item(project, watchlist_map) for project in filtered_projects[: args.top]]
     output_path = output_dir / "context" / f"{input_path.stem.replace('-scored', '')}-context.json"
     write_json_file(
         output_path,

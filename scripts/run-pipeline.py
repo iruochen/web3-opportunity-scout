@@ -58,6 +58,11 @@ def main() -> int:
             run_step([f"scripts/fetch-{adapter}.py", "--source-id", args.source, "--days", str(args.days)])
             update_pipeline_stage(state_dir, run_id, "fetch", completed=True)
 
+            if adapter == "rootdata":
+                update_pipeline_stage(state_dir, run_id, "fetch-details")
+                run_step(["scripts/fetch-rootdata-details.py", "--source-id", args.source])
+                update_pipeline_stage(state_dir, run_id, "fetch-details", completed=True)
+
         update_pipeline_stage(state_dir, run_id, "normalize")
         run_step([f"scripts/normalize-{adapter}.py", "--source-id", args.source])
         update_pipeline_stage(state_dir, run_id, "normalize", completed=True)

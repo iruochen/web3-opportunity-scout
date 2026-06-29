@@ -32,14 +32,12 @@ class BriefRenderingTests(unittest.TestCase):
                 "score": 90.7,
                 "label": "high-priority follow",
                 "project_url": "https://example.com/metal",
-                "reasoning": ["This project looks newly surfaced in current memory."],
                 "supporting_signals": ["RootData hot list rank is 6."],
-                "participation_angle": ["Track testnet, validator, or ecosystem builder programs."],
-                "follow_up_questions": [
-                    "Does this project show evidence beyond current hot-list visibility?",
-                    "Is there a concrete participation angle for the configured user profile?",
-                    "What source should be checked next for validation?",
-                ],
+                "summary": "Settlement network for tokenized finance.",
+                "opportunity_thesis": ["Public financing signal is already visible, so the real edge is whether it is followed by beta, partnerships, or incentives."],
+                "participation_angle": ["Prioritize testnet access, builder programs, validator or node programs, and ecosystem grants."],
+                "priority_checks": ["Confirm the financing round, lead backers, and the first product or ecosystem milestone expected after the raise."],
+                "investors": ["Airwallex", "Capital 49"],
             }
         ]
         html = render_brief_html(projects, {"chains": [], "sectors": []}, "en")
@@ -47,6 +45,7 @@ class BriefRenderingTests(unittest.TestCase):
         self.assertIn(">global<", html)
         self.assertIn(">general<", html)
         self.assertIn("Metal", html)
+        self.assertIn("Backers: Airwallex, Capital 49", html)
 
 
 if __name__ == "__main__":

@@ -215,44 +215,273 @@ def clamp(value: float, minimum: float, maximum: float) -> float:
     return max(minimum, min(maximum, value))
 
 
-def infer_participation_angle(tags: list[str], summary: str) -> list[str]:
-    lowered_tags = {str(tag).strip().lower() for tag in tags}
-    lowered_summary = summary.lower()
-    suggestions: list[str] = []
-
-    if {"layer1", "layer2", "infra", "modular"} & lowered_tags or "network" in lowered_summary or "blockchain" in lowered_summary:
-        suggestions.append("Track testnet, validator, or ecosystem builder programs.")
-    if {"ai", "fhe", "privacy", "cloud computing"} & lowered_tags:
-        suggestions.append("Look for developer previews, research communities, or early integration programs.")
-    if {"defi", "dex", "perp", "lending", "stablecoin protocol", "prediction market"} & lowered_tags:
-        suggestions.append("Monitor product launch access, liquidity programs, and early user incentives.")
-    if {"payment", "crypto card", "did", "consumer"} & lowered_tags or "consumer" in lowered_summary:
-        suggestions.append("Watch for waitlists, referral programs, and user onboarding campaigns.")
-
-    if not suggestions:
-        suggestions.append("Check official channels for launch updates, partnerships, and early access opportunities.")
-
-    return suggestions
+def extract_hot_rank(signals: list[str]) -> int | None:
+    for signal in signals:
+        text = str(signal).strip()
+        prefix = "RootData hot rank:"
+        if not text.startswith(prefix):
+            continue
+        try:
+            return int(text.split(":", 1)[1].strip())
+        except ValueError:
+            return None
+    return None
 
 
-def infer_validation_sources(tags: list[str], source_ids: list[str]) -> list[str]:
-    lowered_tags = {str(tag).strip().lower() for tag in tags}
-    suggestions = ["Official announcements", "Project X/Twitter account", "GitHub activity"]
+def is_established_project(project_name: str) -> bool:
+    normalized = project_name.strip().lower()
+    established = {
+        "solana",
+        "ethereum",
+        "sui",
+        "hyperliquid",
+        "chainlink",
+        "injective",
+        "layerzero",
+        "near protocol",
+        "ripple",
+        "stellar",
+        "monad",
+        "manta network",
+        "bittensor",
+        "aave",
+        "aave v3",
+        "lido",
+        "binance cex",
+        "okx",
+        "bybit",
+        "bitfinex",
+    }
+    return normalized in established
 
-    if {"defi", "lending", "dex", "perp", "stablecoin protocol"} & lowered_tags:
-        suggestions.append("DeFiLlama listings or TVL changes")
-    if {"infra", "layer1", "layer2", "modular"} & lowered_tags:
-        suggestions.append("Ecosystem launch posts or developer documentation")
-    if {"ai", "privacy", "fhe"} & lowered_tags:
-        suggestions.append("Research threads, technical blog posts, or demo releases")
+
+def _dedupe_preserve_order(items: list[str]) -> list[str]:
+    results: list[str] = []
+    for item in items:
+        text = str(item).strip()
+        if text and text not in results:
+            results.append(text)
+    return results
+
+
+def _project_tags(project: dict[str, Any]) -> set[str]:
+    return {str(tag).strip().lower() for tag in project.get("tags", []) if str(tag).strip()}
+
+
+def _project_summary(project: dict[str, Any]) -> str:
+    return str(project.get("summary") or "").strip()
+
+
+def _project_investors(project: dict[str, Any]) -> list[str]:
+    return _dedupe_preserve_order([str(item).strip() for item in project.get("investors", []) if str(item).strip()])
+
+
+def _project_team(project: dict[str, Any]) -> list[dict[str, str]]:
+    team = project.get("team", [])
+    if not isinstance(team, list):
+        return []
+    results: list[dict[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for member in team:
+        if not isinstance(member, dict):
+            continue
+        name = str(member.get("name") or "").strip()
+        role = str(member.get("role") or "").strip()
+        key = (name, role)
+        if not name or key in seen:
+            continue
+        seen.add(key)
+        results.append({"name": name, "role": role})
+    return results
+
+
+def _project_funding_signals(project: dict[str, Any]) -> list[str]:
+    direct = project.get("funding_signals", [])
+    if isinstance(direct, list) and direct:
+        return _dedupe_preserve_order([str(item).strip() for item in direct if str(item).strip()])
+
+    recovered: list[str] = []
+    for signal in project.get("signals", []):
+        text = str(signal).strip()
+        prefix = "Funding signal:"
+        if text.startswith(prefix):
+            recovered.append(text.split(":", 1)[1].strip())
+    return _dedupe_preserve_order(recovered)
+
+
+def _project_news_links(project: dict[str, Any]) -> list[dict[str, str]]:
+    news_links = project.get("news_links", [])
+    if not isinstance(news_links, list):
+        return []
+    results: list[dict[str, str]] = []
+    seen_urls: set[str] = set()
+    for item in news_links:
+        if not isinstance(item, dict):
+            continue
+        url = str(item.get("url") or "").strip()
+        title = str(item.get("title") or "").strip()
+        if not url or url in seen_urls:
+            continue
+        seen_urls.add(url)
+        results.append({"title": title, "url": url})
+    return results
+
+
+def _project_rank(project: dict[str, Any]) -> int | None:
+    return extract_hot_rank(project.get("signals", []))
+
+
+def infer_opportunity_thesis(project: dict[str, Any], locale: str = "en") -> list[str]:
+    summary = _project_summary(project)
+    tags = _project_tags(project)
+    investors = _project_investors(project)
+    team = _project_team(project)
+    funding_signals = _project_funding_signals(project)
+    rank = _project_rank(project)
+    theses: list[str] = []
+
+    if funding_signals:
+        if locale == "zh":
+            theses.append(f"已经出现公开融资线索，当前更值得盯融资后会不会跟出内测、合作或激励计划。")
+        else:
+            theses.append("Public financing signal is already visible, so the real edge is whether it is followed by beta, partnerships, or incentives.")
+    elif investors:
+        joined = ", ".join(investors[:3])
+        if locale == "zh":
+            theses.append(f"已经能看到投资方线索：{joined}，说明它不只是纯概念项目。")
+        else:
+            theses.append(f"Named backers are already visible: {joined}, which makes this more than a pure narrative mention.")
+
+    if rank is not None and rank <= 10:
+        if locale == "zh":
+            theses.append(f"RootData 热度已经到前 {rank}，说明注意力在形成，但还没完全挤满。")
+        else:
+            theses.append(f"RootData rank #{rank} shows attention is forming before the setup looks fully crowded.")
+
+    if team:
+        if locale == "zh":
+            theses.append(f"详情页已经能看到 {len(team)} 位具名团队成员，后续追踪产品和活动会更容易。")
+        else:
+            theses.append(f"{len(team)} named team members are already visible, which makes follow-up easier.")
+
+    if not theses:
+        if locale == "zh":
+            theses.append("目前还没看到足够硬的融资或参与信号，只有在真实入口开放后才值得升级关注。")
+        else:
+            theses.append("There is not enough hard funding or participation evidence yet, so only upgrade this if a real access surface opens.")
+
+    return _dedupe_preserve_order(theses)[:3]
+
+
+def infer_participation_angle(project: dict[str, Any], locale: str = "en") -> list[str]:
+    tags = _project_tags(project)
+    summary = _project_summary(project).lower()
+    investors = _project_investors(project)
+    funding_signals = _project_funding_signals(project)
+    actions: list[str] = []
+
+    if {"infra", "layer1", "layer2", "modular"} & tags or "blockchain" in summary or "network" in summary:
+        actions.append(
+            "优先盯测试网、开发者计划、验证者/节点计划和生态资助入口。"
+            if locale == "zh"
+            else "Prioritize testnet access, builder programs, validator or node programs, and ecosystem grants."
+        )
+    if {"defi", "dex", "lending", "stablecoin protocol", "prediction market", "yield aggregator", "asset management", "onchain fund"} & tags:
+        actions.append(
+            "优先盯候补、产品内测、积分机制、流动性激励和早期金库权限。"
+            if locale == "zh"
+            else "Prioritize waitlists, product beta access, points systems, liquidity incentives, and early vault access."
+        )
+    if {"ai", "fhe", "privacy", "r&d", "cloud computing"} & tags:
+        actions.append(
+            "优先找开发者预览、技术 demo、试点集成和研究社区入口。"
+            if locale == "zh"
+            else "Look for developer previews, technical demos, pilot integrations, and research community access."
+        )
+    if funding_signals or investors:
+        actions.append(
+            "把融资节点当成时间信号，重点观察融资后 1 到 3 周内有没有产品开放、合作公告或激励上线。"
+            if locale == "zh"
+            else "Use the financing event as a timing signal and watch the next one to three weeks for product access, partnerships, or incentives."
+        )
+    if {"consumer", "payment", "crypto card", "did"} & tags or "consumer" in summary:
+        actions.append(
+            "优先找候补名单、邀请制扩散、ambassador 计划和首批开户入口。"
+            if locale == "zh"
+            else "Look for waitlists, referral loops, ambassador programs, and first-wave onboarding access."
+        )
+
+    if not actions:
+        actions.append(
+            "先只盯官方站点和 X，等它放出 beta、testnet、quest 或积分入口再上手。"
+            if locale == "zh"
+            else "Just monitor the official site and X for now, and only act when beta, testnet, quest, or points access goes live."
+        )
+
+    return _dedupe_preserve_order(actions)[:4]
+
+
+def infer_validation_sources(project: dict[str, Any], locale: str = "en") -> list[str]:
+    tags = _project_tags(project)
+    source_ids = {str(item).strip() for item in project.get("source_ids", [])}
+    sources = [
+        "官方公告 / 官方博客" if locale == "zh" else "Official announcements or project blog",
+        "项目官方 X/Twitter" if locale == "zh" else "Project X/Twitter account",
+    ]
+
+    if project.get("website_url"):
+        sources.append("官网产品页" if locale == "zh" else "Official product site")
+    if "github_trending_builders" in source_ids or {"infra", "ai", "privacy", "fhe", "r&d"} & tags:
+        sources.append("GitHub / 开发者文档" if locale == "zh" else "GitHub activity or developer docs")
+    if {"defi", "lending", "dex", "perp", "stablecoin protocol"} & tags:
+        sources.append("DeFiLlama / 链上数据面板" if locale == "zh" else "DeFiLlama or on-chain dashboards")
     if "rootdata_projects" in source_ids:
-        suggestions.append("RootData project detail page")
+        sources.append("RootData 项目详情页" if locale == "zh" else "RootData project detail page")
+    if _project_news_links(project):
+        sources.append("相关新闻原文" if locale == "zh" else "Linked news coverage")
 
-    deduped: list[str] = []
-    for item in suggestions:
-        if item not in deduped:
-            deduped.append(item)
-    return deduped
+    return _dedupe_preserve_order(sources)[:5]
+
+
+def infer_priority_checks(project: dict[str, Any], locale: str = "en") -> list[str]:
+    tags = _project_tags(project)
+    summary = _project_summary(project).lower()
+    investors = _project_investors(project)
+    funding_signals = _project_funding_signals(project)
+    checks: list[str] = []
+
+    if funding_signals or investors:
+        checks.append(
+            "确认融资轮次、领投方和融资后第一波要落地的产品/生态动作。"
+            if locale == "zh"
+            else "Confirm the financing round, lead backers, and the first product or ecosystem milestone expected after the raise."
+        )
+    if {"infra", "layer1", "layer2", "modular"} & tags:
+        checks.append(
+            "确认测试网、builder program、验证者计划或 grant 入口是不是已经开放。"
+            if locale == "zh"
+            else "Confirm whether testnet, builder program, validator access, or grants are already live."
+        )
+    if {"defi", "dex", "lending", "stablecoin protocol", "prediction market", "yield aggregator"} & tags:
+        checks.append(
+            "确认产品是不是已经开放候补、beta、积分、流动性挖矿或第一批金库权限。"
+            if locale == "zh"
+            else "Confirm whether waitlist, beta, points, liquidity mining, or first-wave vault access is already open."
+        )
+    if {"ai", "fhe", "privacy", "r&d"} & tags or "research" in summary:
+        checks.append(
+            "确认有没有开发者试点、技术 demo 或合作接入可以尽早参与。"
+            if locale == "zh"
+            else "Confirm whether there is a developer pilot, technical demo, or partner integration you can join early."
+        )
+    if not checks:
+        checks.append(
+            "确认第一层真实参与入口，而不是只看热度。"
+            if locale == "zh"
+            else "Confirm the first real participation surface instead of relying on attention alone."
+        )
+
+    return _dedupe_preserve_order(checks)[:3]
 
 
 def default_run_state() -> dict[str, Any]:
