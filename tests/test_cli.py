@@ -44,6 +44,13 @@ class CliParserTests(unittest.TestCase):
         self.assertEqual(args.source, "rootdata_projects")
         self.assertTrue(args.skip_fetch)
 
+    def test_run_parses_combined_market_scan(self) -> None:
+        parser = build_parser()
+        args = parser.parse_args(["run", "--source", "combined_market_scan", "--top", "12"])
+        self.assertEqual(args.command, "run")
+        self.assertEqual(args.source, "combined_market_scan")
+        self.assertEqual(args.top, 12)
+
 
 if __name__ == "__main__":
     unittest.main()

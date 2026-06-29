@@ -62,6 +62,7 @@ def main() -> int:
         sources_config, _ = load_effective_yaml("sources.yaml", "sources.example.yaml")
         enabled = {entry.get("id") for _, entry in enabled_source_entries(sources_config)}
         print("Configured sources:")
+        print("- combined_market_scan [virtual] adapter=combined status=available")
         for category, entry in sources_config.get("sources", {}).items():
             if not isinstance(entry, list):
                 continue

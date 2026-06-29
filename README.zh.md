@@ -23,6 +23,7 @@
 - `defillama_new_protocols`：免费协议发现和赛道分类
 - `github_trending_builders`：补代码活跃度和持续交付信号
 - `surf_project_ai_news`：做额度敏感的高级 enrichment
+- `combined_market_scan`：把已启用的 adapter 来源正式串成一条多源扫描流水线
 
 它面向的使用场景包括：
 
@@ -41,6 +42,7 @@ python scripts/cli.py doctor
 python scripts/cli.py init
 python scripts/cli.py list-sources
 python scripts/cli.py run --source rootdata_projects
+python scripts/cli.py run --source combined_market_scan
 ```
 
 也可以直接使用：
@@ -128,6 +130,7 @@ web3-opportunity-scout/
 - `config.yaml` 控制关注链、赛道、评分阈值和目录位置。
 - `sources.yaml` 控制 source 启用状态和请求配置。
 - 每个 source 都可以声明一个 `adapter`，映射到 `fetch-<adapter>.py` 和 `normalize-<adapter>.py`。
+- `combined_market_scan` 是一个虚拟 source，会读取 `sources.yaml` 里已启用且带 adapter 的来源，先生成 combined normalized 产物，再复用公共下游阶段。
 - 各阶段中间产物已经按 source 精确接力，下游不会再误读“全局最新文件”。
 - `filters.active_profile` 用来选择当前跑的是哪种 stream，例如 `opportunity` 或 `market`。
 - source 可以通过 `filter_profiles.<profile>` 定义自己专属的二次筛选规则。
@@ -149,6 +152,7 @@ make test
 
 - 这个仓库当前更适合专注在“稳定产出内容”，而不是自己实现推送基础设施。
 - 如果由 Hermes 或 OpenClaw 托管，建议由宿主的调度器触发 `python scripts/cli.py run --source <source_id>`。
+- 如果要跑全市场多源联扫，直接触发 `python scripts/cli.py run --source combined_market_scan`。
 - 宿主侧读取 `output/briefs/latest-brief.html` 作为富展示推送产物，或者读取 `output/briefs/latest-brief.md` 作为纯文本 / Markdown 推送产物。
 - 最终产物语言通过 `reporting.locale` 控制，可选 `auto`、`en`、`zh`、`bilingual`。
 

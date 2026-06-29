@@ -23,6 +23,7 @@ Adapters currently wired:
 - `defillama_new_protocols` for free protocol/category discovery
 - `github_trending_builders` for repo activity and shipping signals
 - `surf_project_ai_news` for selective premium enrichment with credit-aware usage
+- `combined_market_scan` as a virtual multi-source pipeline over enabled adapter-backed sources
 
 It is designed for:
 
@@ -41,6 +42,7 @@ python scripts/cli.py doctor
 python scripts/cli.py init
 python scripts/cli.py list-sources
 python scripts/cli.py run --source rootdata_projects
+python scripts/cli.py run --source combined_market_scan
 ```
 
 Or use:
@@ -127,6 +129,7 @@ web3-opportunity-scout/
 - `config.yaml` controls focus chains, sectors, scoring thresholds, and directories.
 - `sources.yaml` controls source enablement and request settings.
 - Each source can declare an `adapter` that maps to `fetch-<adapter>.py` and `normalize-<adapter>.py`.
+- `combined_market_scan` is a virtual source that reuses the enabled adapter-backed sources in `sources.yaml`, writes a combined normalized artifact, and then runs the shared downstream stages.
 - Source handoff is source-scoped: downstream steps now resolve the latest artifact for the active source rather than the latest global file.
 - `filters.active_profile` chooses the current stream, such as `opportunity` or `market`.
 - Sources can define `filter_profiles.<profile>` overrides for source-specific second-pass filtering.
@@ -148,6 +151,7 @@ make test
 
 - This repository should focus on producing stable artifacts, not owning delivery infrastructure.
 - When hosted by Hermes or OpenClaw, let the host scheduler trigger `python scripts/cli.py run --source <source_id>`.
+- For market-wide multi-source scans, use `python scripts/cli.py run --source combined_market_scan`.
 - Let the host read `output/briefs/latest-brief.html` for rich push surfaces, or `output/briefs/latest-brief.md` for plain-text / markdown channels.
 - Use `reporting.locale` to choose `auto`, `en`, `zh`, or `bilingual` at artifact generation time.
 
