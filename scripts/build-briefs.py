@@ -92,7 +92,10 @@ def build_fact_lines(project: dict[str, Any], locale: str) -> list[str]:
     signals = [str(item).strip() for item in project.get("supporting_signals", []) if str(item).strip()]
 
     if funding_signals:
-        facts.append(("融资线索: " if locale == "zh" else "Funding: ") + funding_signals[0])
+        funding_text = funding_signals[0]
+        if locale == "zh":
+            funding_text = translate_funding_signal_zh(funding_text)
+        facts.append(("融资线索: " if locale == "zh" else "Funding: ") + funding_text)
     elif investors:
         facts.append(("投资方: " if locale == "zh" else "Backers: ") + ", ".join(investors[:4]))
     if team:
@@ -105,6 +108,52 @@ def build_fact_lines(project: dict[str, Any], locale: str) -> list[str]:
     if signals:
         facts.append(("热度/信号: " if locale == "zh" else "Signals: ") + " | ".join(signals[:2]))
     return facts[:4]
+
+
+def translate_funding_signal_zh(text: str) -> str:
+    translated = str(text).strip()
+    replacements = {
+        "has completed its seed funding round": "已完成种子轮融资",
+        "seed funding round": "种子轮融资",
+        "co-led by": "由以下机构共同领投",
+        "settlement network for tokenized financial products": "面向代币化金融产品的清结算网络",
+        "completed its": "已完成",
+    }
+    for source, target in replacements.items():
+        translated = translated.replace(source, target)
+    return translated
+
+
+def build_opportunity_badges(project: dict[str, Any], locale: str) -> list[str]:
+    badges: list[str] = []
+    funding_signals = [str(item).strip() for item in project.get("funding_signals", []) if str(item).strip()]
+    investors = [str(item).strip() for item in project.get("investors", []) if str(item).strip()]
+    text = " ".join(
+        [str(project.get("summary") or "")]
+        + [str(item) for item in project.get("supporting_signals", [])]
+        + [str(item) for item in project.get("participation_angle_zh", [])]
+        + [str(item) for item in project.get("participation_angle", [])]
+    ).lower()
+
+    def add(label_zh: str, label_en: str) -> None:
+        label = label_zh if locale == "zh" else label_en
+        if label not in badges:
+            badges.append(label)
+
+    if funding_signals or investors:
+        add("融资驱动", "Funding-led")
+    if "waitlist" in text:
+        add("Waitlist", "Waitlist")
+    if "points" in text or "积分" in text:
+        add("积分预期", "Points")
+    if "testnet" in text or "测试网" in text or "devnet" in text:
+        add("Testnet", "Testnet")
+    if "beta" in text or "内测" in text:
+        add("Beta", "Beta")
+    if "grant" in text or "资助" in text:
+        add("开发者入口", "Builder access")
+
+    return badges[:3]
 
 
 def link_items(project: dict[str, Any], locale: str) -> list[tuple[str, str]]:
@@ -358,11 +407,13 @@ def render_project_cards_html(projects: list[dict[str, Any]], locale: str) -> st
         link_label = "链接集合" if locale == "zh" else "Links"
         fact_lines = build_fact_lines(project, locale)
         compact_angle = participation[0] if participation else "n/a"
+        opportunity_badges = build_opportunity_badges(project, locale)
         link_html = "".join(
             f'<a class="link-pill" href="{html_escape(url)}" target="_blank" rel="noopener noreferrer">{html_escape(label)}</a>'
             for label, url in link_items(project, locale)
         ) or '<span class="link-pill muted">n/a</span>'
         tag_html = "".join(f'<span class="tag-pill">{html_escape(tag)}</span>' for tag in project.get("tags", [])[:4])
+        badge_html = "".join(f'<span class="opportunity-pill">{html_escape(item)}</span>' for item in opportunity_badges)
 
         cards.append(
             "\n".join(
@@ -373,6 +424,7 @@ def render_project_cards_html(projects: list[dict[str, Any]], locale: str) -> st
                     f'    <p class="score-pill">{score_label}: {score} · {label}</p>',
                     "  </div>",
                     f"  <h2>{title}</h2>",
+                    f'  <div class="opportunity-row">{badge_html}</div>',
                     f'  <div class="tag-row">{tag_html}</div>',
                     f'  <p class="setup-inline">{html_escape(project_setup)}</p>',
                     f'  <div class="compact-grid"><div class="mini-block"><span class="block-label">{why_label}</span><p>{html_escape(action_premise)}</p></div><div class="mini-block"><span class="block-label">{angle_label}</span><p>{html_escape(compact_angle)}</p></div></div>',
@@ -415,22 +467,25 @@ def render_brief_html(projects: list[dict[str, Any]], focus: dict[str, Any], loc
     <style>
       :root {{
         color-scheme: light;
-        --bg: #f6f1e8;
-        --ink: #14202a;
-        --muted: #61707b;
-        --accent: #bf5b34;
-        --accent-2: #0c6b64;
-        --accent-soft: #ffe6d8;
+        --bg: #f2ecdf;
+        --ink: #101820;
+        --muted: #32414c;
+        --accent: #b5532f;
+        --accent-2: #0e625d;
+        --accent-soft: #ffe2d2;
         --accent-line: rgba(191, 91, 52, 0.18);
-        --card: rgba(255, 255, 255, 0.92);
-        --border: rgba(20, 32, 42, 0.08);
-        --border-strong: rgba(20, 32, 42, 0.12);
-        --shadow: 0 16px 40px rgba(20, 32, 42, 0.08);
-        --shadow-hover: 0 24px 60px rgba(20, 32, 42, 0.12);
-        --panel: rgba(255, 252, 247, 0.96);
-        --tag: #f2ece2;
-        --tag-ink: #49606a;
-        --pill-bg: #1b2731;
+        --card: #ffffff;
+        --border: rgba(16, 24, 32, 0.14);
+        --border-strong: rgba(16, 24, 32, 0.22);
+        --shadow: 0 12px 28px rgba(16, 24, 32, 0.08);
+        --shadow-hover: 0 20px 50px rgba(20, 32, 42, 0.13);
+        --panel: #fff9f2;
+        --tag: #ece3d6;
+        --tag-ink: #233642;
+        --pill-bg: #1a2732;
+        --pill-ink: #fdfefe;
+        --opportunity-bg: #15212a;
+        --opportunity-ink: #f7fafb;
       }}
       * {{ box-sizing: border-box; }}
       body {{
@@ -438,9 +493,7 @@ def render_brief_html(projects: list[dict[str, Any]], focus: dict[str, Any], loc
         font-family: "Avenir Next", "SF Pro Display", "Helvetica Neue", sans-serif;
         color: var(--ink);
         background:
-          radial-gradient(circle at top left, rgba(191,91,52,0.18), transparent 18rem),
-          radial-gradient(circle at top right, rgba(12,107,100,0.12), transparent 24rem),
-          linear-gradient(180deg, #fdf9f2 0%, var(--bg) 100%);
+          linear-gradient(180deg, #fbf7f0 0%, var(--bg) 100%);
       }}
       main {{
         max-width: 1120px;
@@ -452,8 +505,7 @@ def render_brief_html(projects: list[dict[str, Any]], focus: dict[str, Any], loc
         border: 1px solid var(--border);
         border-radius: 32px;
         background:
-          linear-gradient(135deg, rgba(255,255,255,0.97), rgba(255,249,242,0.92)),
-          linear-gradient(120deg, rgba(191,91,52,0.05), rgba(12,107,100,0.04));
+          linear-gradient(135deg, #ffffff, #fdf8f1);
         box-shadow: var(--shadow);
         position: relative;
         overflow: hidden;
@@ -465,7 +517,7 @@ def render_brief_html(projects: list[dict[str, Any]], focus: dict[str, Any], loc
         width: 14rem;
         height: 14rem;
         border-radius: 999px;
-        background: radial-gradient(circle, rgba(12,107,100,0.12), transparent 68%);
+        background: radial-gradient(circle, rgba(12,107,100,0.08), transparent 68%);
         pointer-events: none;
       }}
       h1 {{
@@ -478,6 +530,7 @@ def render_brief_html(projects: list[dict[str, Any]], focus: dict[str, Any], loc
         margin: 0 0 18px;
         color: var(--muted);
         font-size: 1rem;
+        font-weight: 600;
         max-width: 62ch;
       }}
       .meta {{
@@ -496,6 +549,7 @@ def render_brief_html(projects: list[dict[str, Any]], focus: dict[str, Any], loc
       .meta-card {{
         padding: 16px 18px 18px;
         border-color: var(--accent-line);
+        background: rgba(255, 255, 255, 0.98);
       }}
       .meta-card strong {{
         display: block;
@@ -557,16 +611,36 @@ def render_brief_html(projects: list[dict[str, Any]], focus: dict[str, Any], loc
         font-size: 1.35rem;
         letter-spacing: -0.02em;
         line-height: 1.05;
+        color: var(--ink);
+      }}
+      .opportunity-row {{
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 10px;
+      }}
+      .opportunity-pill {{
+        display: inline-flex;
+        align-items: center;
+        padding: 7px 11px;
+        border-radius: 999px;
+        background: var(--opportunity-bg);
+        color: var(--opportunity-ink);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
       }}
       .score-pill {{
         display: inline-block;
         margin: 0;
-        padding: 8px 12px;
+        padding: 9px 13px;
         border-radius: 999px;
-        background: linear-gradient(135deg, var(--pill-bg), #263542);
-        color: #fff;
-        font-size: 0.86rem;
+        background: linear-gradient(135deg, var(--pill-bg), #2a3946);
+        color: var(--pill-ink);
+        font-size: 0.88rem;
+        font-weight: 700;
         letter-spacing: 0.01em;
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
       }}
       .tag-row {{
         display: flex;
@@ -581,17 +655,20 @@ def render_brief_html(projects: list[dict[str, Any]], focus: dict[str, Any], loc
         border-radius: 999px;
         background: var(--tag);
         color: var(--tag-ink);
-        font-size: 0.8rem;
-        border: 1px solid rgba(20, 32, 42, 0.04);
+        font-size: 0.81rem;
+        border: 1px solid rgba(20, 32, 42, 0.06);
+        font-weight: 600;
       }}
       .opportunity-card p {{
         margin: 0 0 12px;
-        line-height: 1.45;
+        line-height: 1.48;
         color: var(--muted);
       }}
       .setup-inline {{
         margin-bottom: 12px;
-        font-size: 0.95rem;
+        font-size: 0.96rem;
+        color: #23333d;
+        font-weight: 600;
       }}
       .compact-grid {{
         display: grid;
@@ -604,9 +681,12 @@ def render_brief_html(projects: list[dict[str, Any]], focus: dict[str, Any], loc
         border-radius: 16px;
         background: var(--panel);
         border: 1px solid rgba(20, 32, 42, 0.05);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.65);
       }}
       .mini-block p {{
         margin: 0;
+        color: #22343f;
+        font-weight: 500;
       }}
       .card-block {{
         margin: 0 0 12px;
@@ -614,6 +694,7 @@ def render_brief_html(projects: list[dict[str, Any]], focus: dict[str, Any], loc
         border-radius: 18px;
         background: var(--panel);
         border: 1px solid rgba(20, 32, 42, 0.06);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.65);
       }}
       .block-label {{
         display: inline-block;
@@ -638,11 +719,11 @@ def render_brief_html(projects: list[dict[str, Any]], focus: dict[str, Any], loc
         align-items: center;
         padding: 8px 12px;
         border-radius: 999px;
-        background: rgba(255,255,255,0.88);
-        border: 1px solid rgba(20, 32, 42, 0.08);
+        background: #ffffff;
+        border: 1px solid rgba(20, 32, 42, 0.1);
         color: var(--accent);
         text-decoration: none;
-        font-weight: 600;
+        font-weight: 700;
         font-size: 0.85rem;
         transition: transform 140ms ease, border-color 140ms ease, background 140ms ease;
       }}
@@ -663,7 +744,7 @@ def render_brief_html(projects: list[dict[str, Any]], focus: dict[str, Any], loc
         cursor: pointer;
         color: var(--accent);
         font-weight: 700;
-        font-size: 0.9rem;
+        font-size: 0.92rem;
         list-style: none;
         display: inline-flex;
         align-items: center;
@@ -689,6 +770,9 @@ def render_brief_html(projects: list[dict[str, Any]], focus: dict[str, Any], loc
       }}
       .detail-drawer[open] summary {{
         margin-bottom: 10px;
+      }}
+      strong, b {{
+        color: var(--ink);
       }}
       @media (min-width: 900px) {{
         .compact-grid {{
