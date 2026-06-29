@@ -57,6 +57,7 @@ def check_paths() -> list[CheckResult]:
         ROOT / "scripts" / "fetch-blockbeats.py",
         ROOT / "scripts" / "fetch-defillama.py",
         ROOT / "scripts" / "fetch-github.py",
+        ROOT / "scripts" / "fetch-rootdata-details.py",
         ROOT / "scripts" / "fetch-rootdata.py",
         ROOT / "scripts" / "fetch-surf.py",
         ROOT / "scripts" / "normalize-blockbeats.py",
