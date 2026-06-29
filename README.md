@@ -4,6 +4,8 @@
 
 `web3-opportunity-scout` is a production-oriented skill for discovering early Web3 opportunities from configurable data sources.
 
+Open source license: [MIT](LICENSE)
+
 The current repository already supports a working multi-adapter MVP:
 
 - fetch source data
@@ -117,6 +119,7 @@ web3-opportunity-scout/
 - Runtime contracts: [references/contracts.md](references/contracts.md)
 - Source onboarding: [references/source-onboarding.md](references/source-onboarding.md)
 - Host integration: [references/host-integration.md](references/host-integration.md)
+- Contributing: [CONTRIBUTING.md](CONTRIBUTING.md)
 - Project brief: [docs/brief.md](docs/brief.md)
 
 ### Configuration
@@ -150,8 +153,12 @@ make test
 
 More detail: [references/host-integration.md](references/host-integration.md)
 
-### Publishing Notes
+### Contributing
 
-- Public docs use English primary files plus parallel Chinese `*.zh.md` files.
-- Repository-internal links use relative paths for GitHub portability.
-- Secrets stay in `.env` or local overrides and must not be committed.
+- Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
+- Source adapters, normalizers, and run-state changes should include the most relevant validation notes.
+- Secrets must stay in `.env` or local untracked overrides.
+
+### License
+
+This project is released under the [MIT License](LICENSE).

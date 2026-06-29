@@ -52,6 +52,7 @@ Build `web3-opportunity-scout` as a production-grade, multi-source Web3 opportun
 - Keep short docs in both English and Chinese when they are user-facing.
 - Prefer English primary docs plus parallel `*.zh.md` Chinese docs for public-facing files.
 - Use relative Markdown links so docs stay portable on GitHub.
+- Keep internal publishing or contributor workflow rules out of public README files unless they help end users directly.
 - Prefer:
   - `README.md`
   - `README.zh.md`
@@ -76,6 +77,12 @@ Before considering a change ready:
 - run `python scripts/doctor.py`
 - run the most relevant script path for the changed component
 - prefer dry-run support for source integrations before live execution
+
+## Release Notes
+
+- Public README files should focus on product value, setup, usage, outputs, contribution entry points, and license.
+- Contributor workflow details, publishing constraints, and agent-specific collaboration rules belong here or in internal docs.
+- If an open-source license is referenced in README, keep the repository-level `LICENSE` file in sync.
 
 ## 中文说明
 

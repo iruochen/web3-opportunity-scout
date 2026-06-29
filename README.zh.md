@@ -4,6 +4,8 @@
 
 `web3-opportunity-scout` 是一个面向生产环境的 Web3 早期机会发现 skill，用来从可配置的数据源中稳定产出高价值项目机会线索。
 
+开源协议：[MIT](LICENSE)
+
 当前仓库已经支持一个可运行的多 adapter MVP：
 
 - 抓取来源数据
@@ -118,6 +120,7 @@ web3-opportunity-scout/
 - 运行时 contract: [references/contracts.zh.md](references/contracts.zh.md)
 - Source 接入指南: [references/source-onboarding.zh.md](references/source-onboarding.zh.md)
 - Host 集成: [references/host-integration.zh.md](references/host-integration.zh.md)
+- 贡献指南: [CONTRIBUTING.zh.md](CONTRIBUTING.zh.md)
 - 项目简介: [docs/brief.zh.md](docs/brief.zh.md)
 
 ### 配置说明
@@ -151,8 +154,12 @@ make test
 
 更多说明见: [references/host-integration.zh.md](references/host-integration.zh.md)
 
-### 发布说明
+### 参与贡献
 
-- 对外文档使用英文主文件和中文 `*.zh.md` 配对文件。
-- 仓库内部文档链接统一使用相对路径，方便直接发布到 GitHub。
-- Secret 只允许放在 `.env` 或本地未跟踪覆盖文件中，不能提交进版本库。
+- 提交 PR 之前，建议先看 [CONTRIBUTING.zh.md](CONTRIBUTING.zh.md)。
+- 如果改到了 source adapter、normalizer 或状态层，最好在 PR 里补上对应验证说明。
+- Secret 只允许放在 `.env` 或本地未跟踪覆盖文件中。
+
+### 开源协议
+
+本项目使用 [MIT License](LICENSE)。
