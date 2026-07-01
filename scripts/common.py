@@ -485,6 +485,124 @@ def project_actionability_score(project: dict[str, Any]) -> float:
     return clamp(score, 0.0, 100.0)
 
 
+def _project_shape_theses(project: dict[str, Any], locale: str) -> list[str]:
+    tags = _project_tags(project)
+    summary = _project_summary(project).lower()
+    name = str(project.get("project_name") or project.get("canonical_name") or "").strip()
+    theses: list[str] = []
+
+    def add(zh: str, en: str) -> None:
+        theses.append(zh if locale == "zh" else en)
+
+    if "intent" in tags and "infra" in tags:
+        add(
+            "它不是单纯新链叙事，而是意图/抽象层基础设施；真正的早期边际在 SDK、集成方和跨协议操作入口是否先放出来。",
+            "This is not just a new-chain narrative; as intent/abstraction infra, the early edge is whether SDKs, integrations, or cross-protocol workflows open first.",
+        )
+    elif "cloud computing" in tags or ("ai" in tags and ("layer1" in tags or "network" in summary)):
+        add(
+            "它更像 AI/算力网络，不能只看热度；优先判断是否能贡献算力、跑节点、接入开发者测试网或参与研究社区。",
+            "This looks like an AI/compute network, so heat alone is not enough; prioritize compute contribution, nodes, dev testnets, or research community access.",
+        )
+    elif "bridge" in tags or "ecosystem(19):" in tags:
+        add(
+            "它的机会更可能出现在新链接入、跨链流动性迁移和生态活动，而不是普通持币观察。",
+            "The likely edge is new-chain support, cross-chain liquidity migration, or ecosystem campaigns rather than passive token watching.",
+        )
+    elif "crypto card" in tags or "payment" in tags:
+        add(
+            "这是偏消费/支付入口的项目，早期价值通常不在技术白皮书，而在首批开户、邀请、卡片权益或积分活动。",
+            "This is closer to a consumer/payment entry point; early value usually comes from first-wave onboarding, referrals, card perks, or points campaigns.",
+        )
+    elif "insurance" in tags:
+        add(
+            "保险/风险市场项目的参与点通常在承保资金池、保险库或首批产品试用，适合看是否出现资本提供者入口。",
+            "Insurance/risk-market projects usually become actionable through underwriting pools, vaults, or first product trials; look for capital-provider access.",
+        )
+    elif {"tools", "data & analysis", "on-chain data"} & tags:
+        add(
+            "它偏数据/分析工具，参与边际更可能来自 API、dashboard beta、数据贡献或开发者社区，而不是普通交互任务。",
+            "This is more of a data/tooling play; the edge is more likely APIs, dashboard beta, data contribution, or developer community access than generic quests.",
+        )
+    elif "defi" in tags and "intent" in tags:
+        add(
+            "DeFi + intent 的组合更适合盯自动化策略、首批 vault、路由/执行任务和积分，而不是只看融资背书。",
+            "DeFi plus intents should be watched for automated strategies, first vaults, routing/execution tasks, and points rather than funding alone.",
+        )
+    elif "defi" in tags:
+        add(
+            "DeFi 项目只有出现可用产品、资金池、积分或流动性激励时才值得上手，单纯关注度不够。",
+            "A DeFi project only becomes actionable when usable products, pools, points, or liquidity incentives appear; attention alone is not enough.",
+        )
+    elif "infra" in tags or "layer1" in tags or "layer2" in tags:
+        add(
+            "基础设施项目的早期窗口通常在测试网、节点/验证者、grant 和生态开发者计划，适合先看 builder 入口。",
+            "Infrastructure projects usually expose early windows through testnets, nodes/validators, grants, and ecosystem builder programs.",
+        )
+    elif name:
+        add(
+            f"{name} 目前更像需要继续观察入口的早期项目，关键不是先下结论，而是等官方开放可执行路径。",
+            f"{name} currently looks like an early project where the key is waiting for an executable official path, not rushing the conclusion.",
+        )
+    return theses
+
+
+def _project_participation_actions(project: dict[str, Any], locale: str) -> list[str]:
+    tags = _project_tags(project)
+    summary = _project_summary(project).lower()
+    actions: list[str] = []
+
+    def add(zh: str, en: str) -> None:
+        actions.append(zh if locale == "zh" else en)
+
+    if "intent" in tags and "infra" in tags:
+        add(
+            "先找 SDK、开发者文档、集成伙伴申请和跨链/多协议 demo，能接入或试用的入口优先级最高。",
+            "Look first for SDKs, developer docs, integration partner forms, and cross-protocol demos; anything you can integrate or test has priority.",
+        )
+    if "cloud computing" in tags or ("ai" in tags and ("layer1" in tags or "network" in summary)):
+        add(
+            "重点确认有没有 testnet、算力贡献、节点运行、研究者社区或模型/数据任务。",
+            "Check for testnets, compute contribution, node running, research communities, or model/data tasks.",
+        )
+    if "bridge" in tags:
+        add(
+            "盯新增链支持、迁移活动、LP 激励和跨链任务，桥类项目的机会通常跟生态切换同步出现。",
+            "Watch new-chain support, migration campaigns, LP incentives, and bridge tasks; bridge opportunities often appear with ecosystem shifts.",
+        )
+    if {"defi", "dex", "lending", "stablecoin protocol", "prediction market", "yield aggregator", "asset management", "onchain fund"} & tags:
+        add(
+            "优先看产品 beta、vault/资金池、积分、交易/预测任务和流动性激励是否已经开放。",
+            "Prioritize product beta, vaults/pools, points, trading/prediction tasks, and liquidity incentives.",
+        )
+    if "crypto card" in tags or "payment" in tags:
+        add(
+            "找候补名单、邀请制开户、卡片权益、返现/积分和首批地区开放信息。",
+            "Look for waitlists, invite onboarding, card perks, cashback/points, and first-region rollout details.",
+        )
+    if "insurance" in tags:
+        add(
+            "确认是否能作为资本提供者进入 vault、承保池或首批保险产品试用。",
+            "Confirm whether you can join as a capital provider through vaults, underwriting pools, or first insurance product trials.",
+        )
+    if {"tools", "data & analysis", "on-chain data"} & tags:
+        add(
+            "优先找 dashboard beta、API key、数据贡献任务、研究员社区和开发者 grant。",
+            "Look for dashboard beta, API keys, data contribution tasks, researcher communities, and developer grants.",
+        )
+    if {"ai", "fhe", "privacy", "r&d"} & tags and not any("研究" in item or "research" in item.lower() for item in actions):
+        add(
+            "找技术 demo、研究社区、白名单测试和合作集成入口，AI/隐私类项目通常更偏 builder 参与。",
+            "Look for technical demos, research communities, whitelist testing, and integration access; AI/privacy projects often favor builders.",
+        )
+    if {"infra", "layer1", "layer2", "modular"} & tags and not any("testnet" in item.lower() or "测试网" in item for item in actions):
+        add(
+            "确认测试网、节点/验证者、builder program 和 grant 是否已经开放。",
+            "Confirm whether testnet, nodes/validators, builder programs, or grants are open.",
+        )
+    return _dedupe_preserve_order(actions)
+
+
 def infer_opportunity_thesis(project: dict[str, Any], locale: str = "en") -> list[str]:
     summary = _project_summary(project)
     tags = _project_tags(project)
@@ -498,11 +616,7 @@ def infer_opportunity_thesis(project: dict[str, Any], locale: str = "en") -> lis
     rank = _project_rank(project)
     theses: list[str] = []
 
-    if len(source_ids) >= 2:
-        if locale == "zh":
-            theses.append(f"它同时被 {len(source_ids)} 类来源命中，说明不是单点热度。")
-        else:
-            theses.append(f"It is showing up across {len(source_ids)} source types, which reduces single-feed noise.")
+    theses.extend(_project_shape_theses(project, locale)[:1])
 
     if funding_rounds:
         first_round = funding_rounds[0]
@@ -530,9 +644,9 @@ def infer_opportunity_thesis(project: dict[str, Any], locale: str = "en") -> lis
     elif investors:
         joined = ", ".join(investors[:3])
         if locale == "zh":
-            theses.append(f"已经能看到投资方线索：{joined}，说明它不只是纯概念项目。")
+            theses.append(f"投资方里已经出现 {joined}，这更像是可继续追踪的资金确认信号，但还不能替代真实参与入口。")
         else:
-            theses.append(f"Named backers are already visible: {joined}, which makes this more than a pure narrative mention.")
+            theses.append(f"Backers such as {joined} make this worth tracking, but they do not replace a real participation surface.")
 
     if strong_participation:
         if locale == "zh":
@@ -540,17 +654,28 @@ def infer_opportunity_thesis(project: dict[str, Any], locale: str = "en") -> lis
         else:
             theses.append("There is already a visible participation surface, so the focus is confirming whether the access path is actually live.")
 
-    if rank is not None and rank <= 10 and not participation_signals and not funding_signals:
+    if rank is not None and rank <= 3:
         if locale == "zh":
-            theses.append(f"RootData 热度已经到前 {rank}，说明注意力在形成，但还没完全挤满。")
+            theses.append(f"RootData 排名已经到第 {rank}，说明市场注意力很靠前；如果入口开放，窗口可能不会太长。")
         else:
-            theses.append(f"RootData rank #{rank} shows attention is forming before the setup looks fully crowded.")
+            theses.append(f"RootData rank #{rank} suggests attention is already near the front; if access opens, the window may be short.")
+    elif rank is not None and rank <= 10 and not participation_signals and not funding_signals:
+        if locale == "zh":
+            theses.append(f"RootData 排名在前 {rank}，适合观察从关注度到可参与入口的转换，而不是只看热榜。")
+        else:
+            theses.append(f"RootData rank #{rank} is useful only if attention converts into an actual access path.")
 
-    if team:
+    if len(source_ids) >= 2:
         if locale == "zh":
-            theses.append(f"详情页已经能看到 {len(team)} 位具名团队成员，后续追踪产品和活动会更容易。")
+            theses.append(f"它同时被 {len(source_ids)} 类来源命中，优先级高于单一热榜项目。")
         else:
-            theses.append(f"{len(team)} named team members are already visible, which makes follow-up easier.")
+            theses.append(f"It appears across {len(source_ids)} source types, so it ranks above single-feed heat.")
+
+    if team and len(theses) < 3:
+        if locale == "zh":
+            theses.append(f"团队信息相对透明，已识别 {len(team)} 位成员，后续追踪交付和活动更容易。")
+        else:
+            theses.append(f"Team visibility is decent with {len(team)} named members, making follow-up easier.")
 
     if not theses:
         if locale == "zh":
@@ -579,35 +704,12 @@ def infer_participation_angle(project: dict[str, Any], locale: str = "en") -> li
             else f"Start by verifying the participation cues already visible: {joined}."
         )
 
-    if {"infra", "layer1", "layer2", "modular"} & tags or "blockchain" in summary or "network" in summary:
-        actions.append(
-            "优先盯测试网、开发者计划、验证者/节点计划和生态资助入口。"
-            if locale == "zh"
-            else "Prioritize testnet access, builder programs, validator or node programs, and ecosystem grants."
-        )
-    if {"defi", "dex", "lending", "stablecoin protocol", "prediction market", "yield aggregator", "asset management", "onchain fund"} & tags:
-        actions.append(
-            "优先盯候补、产品内测、积分机制、流动性激励和早期金库权限。"
-            if locale == "zh"
-            else "Prioritize waitlists, product beta access, points systems, liquidity incentives, and early vault access."
-        )
-    if {"ai", "fhe", "privacy", "r&d", "cloud computing"} & tags:
-        actions.append(
-            "优先找开发者预览、技术 demo、试点集成和研究社区入口。"
-            if locale == "zh"
-            else "Look for developer previews, technical demos, pilot integrations, and research community access."
-        )
+    actions.extend(_project_participation_actions(project, locale))
     if funding_signals or funding_rounds or investors:
         actions.append(
-            "资金面只当筛选权重；真正上手前优先找官方任务、waitlist、testnet、points 或生态计划入口。"
+            "融资只用来决定是否值得盯；真正执行前必须找到官网、X 或文档里的可操作入口。"
             if locale == "zh"
-            else "Treat funding as a ranking signal only; before acting, look for official quests, waitlists, testnets, points, or ecosystem programs."
-        )
-    if {"consumer", "payment", "crypto card", "did"} & tags or "consumer" in summary:
-        actions.append(
-            "优先找候补名单、邀请制扩散、ambassador 计划和首批开户入口。"
-            if locale == "zh"
-            else "Look for waitlists, referral loops, ambassador programs, and first-wave onboarding access."
+            else "Use funding only to decide whether to watch; before acting, find an executable path on the site, X, or docs."
         )
 
     if not actions:

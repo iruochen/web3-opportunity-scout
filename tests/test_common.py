@@ -67,8 +67,10 @@ class InferenceTests(unittest.TestCase):
         }
         results = infer_participation_angle(project)
         self.assertTrue(any("liquidity incentives" in item for item in results))
-        self.assertTrue(any("developer previews" in item for item in results))
-        self.assertTrue(any("funding as a ranking signal" in item for item in results))
+        self.assertTrue(
+            any("compute contribution" in item or "technical demos" in item for item in results)
+        )
+        self.assertTrue(any("funding only" in item for item in results))
 
     def test_validation_sources_include_rootdata_and_defi(self) -> None:
         project = {
