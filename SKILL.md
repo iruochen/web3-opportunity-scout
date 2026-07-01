@@ -94,7 +94,14 @@ Otherwise proceed with defaults, state assumptions, and keep momentum.
 
 - `config.yaml` stores preferences and run policy, never secrets
 - `sources.yaml` defines enabled sources by category, cadence, and extraction notes
+- source fetch configuration should stay declarative; use `request` for primary collection and `detail_request` for per-record enrichment when an adapter supports it
 - secrets, tokens, and cookies should live outside this skill and be injected by the host environment when needed
+
+## Current Source Notes
+
+- RootData uses `https://api.rootdata.com/open/skill/hot_index` for hot project discovery.
+- RootData detail enrichment uses `https://api.rootdata.com/open/skill/get_item` with `ROOTDATA_API_KEY` as a bearer token.
+- RootData detail enrichment should not require Chrome, Selenium, cookies, or browser session access.
 
 ## Documentation Contract
 

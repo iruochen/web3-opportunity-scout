@@ -18,7 +18,7 @@ The current repository already supports a working multi-adapter MVP:
 
 Adapters currently wired:
 
-- `rootdata_projects` for broad project discovery
+- `rootdata_projects` for broad project discovery plus API-based project detail enrichment
 - `blockbeats_original_newsflash` for faster-moving Chinese market/project signals
 - `defillama_new_protocols` for free protocol/category discovery
 - `github_trending_builders` for repo activity and shipping signals
@@ -128,6 +128,7 @@ web3-opportunity-scout/
 
 - `config.yaml` controls focus chains, sectors, scoring thresholds, and directories.
 - `sources.yaml` controls source enablement and request settings.
+- RootData uses `request` for the hot project list and `detail_request` for per-project enrichment via `https://api.rootdata.com/open/skill/get_item`; this does not require Chrome or Selenium.
 - Each source can declare an `adapter` that maps to `fetch-<adapter>.py` and `normalize-<adapter>.py`.
 - `combined_market_scan` is a virtual source that reuses the enabled adapter-backed sources in `sources.yaml`, writes a combined normalized artifact, and then runs the shared downstream stages.
 - Source handoff is source-scoped: downstream steps now resolve the latest artifact for the active source rather than the latest global file.

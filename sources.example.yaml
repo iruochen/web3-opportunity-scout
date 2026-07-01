@@ -39,6 +39,17 @@ sources:
           language: en
         body:
           days: 1
+      detail_request:
+        base_url: https://api.rootdata.com
+        path: /open/skill/get_item
+        method: POST
+        headers:
+          Accept: application/json
+          language: en
+          Content-Type: application/json
+        body:
+          include_team: true
+          include_investors: true
     - id: opennews_projects
       enabled: false
       adapter: opennews

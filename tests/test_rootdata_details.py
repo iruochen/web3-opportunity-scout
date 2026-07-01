@@ -162,6 +162,28 @@ class RootDataDetailParsingTests(unittest.TestCase):
         )
         self.assertEqual(rounds, [])
 
+    def test_normalize_api_links_extracts_social_media(self) -> None:
+        links = fetch_rootdata_details.normalize_api_links(
+            {
+                "social_media": {
+                    "website": "https://example.org",
+                    "X": "https://x.com/example",
+                    "gitbook": "https://docs.example.org",
+                    "medium": "",
+                }
+            },
+            None,
+        )
+        self.assertEqual(links["website_url"], "https://example.org")
+        self.assertEqual(links["x_url"], "https://x.com/example")
+        self.assertEqual(links["project_links"], ["https://docs.example.org"])
+
+    def test_normalize_api_investors_extracts_names(self) -> None:
+        investors = fetch_rootdata_details.normalize_api_investors(
+            [{"name": "1kx"}, {"name": "1kx"}, {"name": "Paradigm"}]
+        )
+        self.assertEqual(investors, ["1kx", "Paradigm"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -40,6 +40,7 @@
 - `request.headers`
 - `request.query`
 - `request.body`
+- `detail_request.*`：当 adapter 支持逐条 enrichment 时，用于配置 source-specific 的详情请求
 
 可选筛选字段：
 

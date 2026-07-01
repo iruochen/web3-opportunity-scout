@@ -57,7 +57,7 @@ flowchart LR
 
 ### Source Strategy
 
-- `RootData` acts as broad project discovery and baseline project metadata.
+- `RootData` acts as broad project discovery and baseline project metadata. The hot list comes from `/open/skill/hot_index`; per-project enrichment uses `/open/skill/get_item`, which returns structured fields such as description, tags, official links, contracts, similar projects, and investors without requiring browser automation.
 - `BlockBeats` acts as a faster-moving Chinese signal surface that benefits from aggressive second-pass filtering.
 - `DeFiLlama` acts as a free protocol/category discovery layer.
 - `GitHub` acts as a builder-shipping and repo-activity layer.

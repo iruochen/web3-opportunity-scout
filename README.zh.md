@@ -18,7 +18,7 @@
 
 当前已接好的 adapter：
 
-- `rootdata_projects`：做广义项目发现
+- `rootdata_projects`：做广义项目发现，并通过 API 补充项目详情
 - `blockbeats_original_newsflash`：补快速中文项目/市场信号
 - `defillama_new_protocols`：免费协议发现和赛道分类
 - `github_trending_builders`：补代码活跃度和持续交付信号
@@ -129,6 +129,7 @@ web3-opportunity-scout/
 
 - `config.yaml` 控制关注链、赛道、评分阈值和目录位置。
 - `sources.yaml` 控制 source 启用状态和请求配置。
+- RootData 使用 `request` 拉取热门项目列表，使用 `detail_request` 通过 `https://api.rootdata.com/open/skill/get_item` 补充单个项目详情；这个流程不需要 Chrome 或 Selenium。
 - 每个 source 都可以声明一个 `adapter`，映射到 `fetch-<adapter>.py` 和 `normalize-<adapter>.py`。
 - `combined_market_scan` 是一个虚拟 source，会读取 `sources.yaml` 里已启用且带 adapter 的来源，先生成 combined normalized 产物，再复用公共下游阶段。
 - 各阶段中间产物已经按 source 精确接力，下游不会再误读“全局最新文件”。

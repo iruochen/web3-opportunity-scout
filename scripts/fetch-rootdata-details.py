@@ -9,17 +9,15 @@ import re
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
-
-from selenium import webdriver
-from selenium.common.exceptions import TimeoutException, WebDriverException
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
+from urllib.request import Request, urlopen
 
 from common import (
     ROOT,
     default_run_state,
     ensure_dir,
+    find_source_definition,
     load_dotenv_file,
     load_effective_yaml,
     read_json_file,
@@ -36,6 +34,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--limit", type=int, default=20, help="Maximum number of projects to enrich from the latest RootData batch")
     parser.add_argument("--project-id", type=int, action="append", help="Optional explicit project ids to fetch")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--base-url", help="Override RootData detail API base URL")
+    parser.add_argument("--path", help="Override RootData detail API path")
     return parser.parse_args()
 
 
@@ -50,6 +50,50 @@ def cache_file_path(source_id: str, cache_dir_name: str) -> Path:
     today = datetime.now(UTC).strftime("%Y-%m-%d")
     timestamp = datetime.now(UTC).strftime("%H%M%S")
     return ROOT / cache_dir_name / "rootdata-details" / today / f"{timestamp}-{slugify(source_id)}.json"
+
+
+def build_detail_request_config(source_def: dict[str, Any], base_url: str | None, path: str | None) -> dict[str, Any]:
+    request_cfg = dict(source_def.get("detail_request", {}))
+    headers = dict(request_cfg.get("headers", {}))
+    body = dict(request_cfg.get("body", {}))
+    request_cfg["base_url"] = base_url or request_cfg.get("base_url") or "https://api.rootdata.com"
+    request_cfg["path"] = path or request_cfg.get("path") or "/open/skill/get_item"
+    request_cfg["method"] = str(request_cfg.get("method", "POST")).upper()
+    request_cfg["headers"] = headers
+    request_cfg["body"] = body
+    return request_cfg
+
+
+def build_url(request_cfg: dict[str, Any]) -> str:
+    base_url = str(request_cfg.get("base_url", "")).rstrip("/")
+    path = str(request_cfg.get("path", "")).strip()
+    if not base_url or not path:
+        raise ValueError("RootData detail request config requires both base_url and path")
+    return f"{base_url}{path}" if path.startswith("/") else f"{base_url}/{path}"
+
+
+def inject_auth(headers: dict[str, Any], source_def: dict[str, Any], dry_run: bool) -> tuple[dict[str, str], str | None]:
+    final_headers = {str(key): str(value) for key, value in headers.items()}
+    auth_cfg = source_def.get("auth", {})
+    if not auth_cfg:
+        return final_headers, None
+
+    env_name = auth_cfg.get("env")
+    if not env_name:
+        raise ValueError("RootData source auth config is missing env")
+
+    token = os.getenv(str(env_name))
+    if not token and not dry_run:
+        raise RuntimeError(f"Missing required environment variable: {env_name}")
+
+    kind = str(auth_cfg.get("kind", "bearer")).lower()
+    header_name = str(auth_cfg.get("header", "Authorization"))
+    if token:
+        if kind == "bearer":
+            final_headers[header_name] = f"Bearer {token}"
+        else:
+            final_headers[header_name] = token
+    return final_headers, str(env_name)
 
 
 def update_run_state(
@@ -356,159 +400,162 @@ def classify_links(links: list[dict[str, str]], fallback_x: str | None) -> dict[
     }
 
 
-def scrape_project(driver: webdriver.Chrome, project: dict[str, Any]) -> dict[str, Any]:
+def normalize_api_team(values: Any) -> list[dict[str, str]]:
+    if not isinstance(values, list):
+        return []
+    people: list[dict[str, str]] = []
+    for item in values:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name") or item.get("people_name") or item.get("member_name") or "").strip()
+        role = str(item.get("role") or item.get("title") or item.get("position") or "").strip()
+        if name:
+            people.append({"name": name, "role": role})
+    return people
+
+
+def normalize_api_investors(values: Any) -> list[str]:
+    if not isinstance(values, list):
+        return []
+    investors: list[str] = []
+    for item in values:
+        name = item.get("name") if isinstance(item, dict) else item
+        text = str(name or "").strip()
+        if text and text not in investors:
+            investors.append(text)
+    return investors
+
+
+def normalize_api_links(payload: dict[str, Any], fallback_x: str | None) -> dict[str, Any]:
+    social_media = payload.get("social_media")
+    social_media = social_media if isinstance(social_media, dict) else {}
+    website_url = str(social_media.get("website") or "").strip() or None
+    x_url = str(social_media.get("X") or social_media.get("twitter") or fallback_x or "").strip() or None
+    project_links = []
+    for key, value in social_media.items():
+        url = str(value or "").strip()
+        if key in {"website", "X", "twitter"} or not url.startswith("http"):
+            continue
+        if url not in project_links:
+            project_links.append(url)
+    return {
+        "website_url": website_url,
+        "x_url": x_url,
+        "project_links": project_links[:8],
+        "news_links": [],
+    }
+
+
+def perform_detail_request(url: str, method: str, headers: dict[str, str], body: dict[str, Any]) -> dict[str, Any]:
+    data = json.dumps(body).encode("utf-8") if method != "GET" else None
+    request = Request(url=url, method=method, headers=headers, data=data)
+    with urlopen(request, timeout=30) as response:
+        payload = response.read().decode("utf-8")
+        return json.loads(payload)
+
+
+def fetch_project_detail(url: str, method: str, headers: dict[str, str], request_body: dict[str, Any], project: dict[str, Any]) -> dict[str, Any]:
     project_id = int(project.get("project_id"))
-    detail_url = str(project.get("rootdataurl") or "")
-    if not detail_url:
-        raise ValueError(f"Project {project_id} is missing rootdataurl")
+    body = dict(request_body)
+    body["project_id"] = project_id
+    payload = perform_detail_request(url, method, headers, body)
+    if payload.get("result") != 200:
+        raise RuntimeError(str(payload.get("message") or payload.get("msg") or payload))
+    data = payload.get("data")
+    if not isinstance(data, dict):
+        raise RuntimeError("RootData detail API returned no project data")
 
-    driver.get(detail_url)
-    links = [
-        {"text": element.text.strip(), "href": element.get_attribute("href") or ""}
-        for element in driver.find_elements(By.CSS_SELECTOR, "a[href]")
-    ]
-    body_text = driver.find_element(By.TAG_NAME, "body").text
-    body_lines = split_lines(body_text)
-
-    one_liner = None
-    try:
-        one_liner = driver.find_element(By.CSS_SELECTOR, "h1 + p").text.strip()
-    except Exception:
-        pass
-
-    details_section = driver.find_element(By.ID, "detail_section_essentials_details")
-    details_lines = split_lines(details_section.text)
-    details_block = between(details_lines, "Details", "Tags:")
-    tags_block = between(details_lines, "Tags:", "Founded:")
-    founded = extract_first_after(details_lines, "Founded:")
-
-    team_links = []
-    try:
-        team_section = driver.find_element(By.ID, "detail_section_essentials_team")
-        team_lines = split_lines(team_section.text)
-        team_links = [{"text": item.text.strip(), "href": item.get_attribute("href") or ""} for item in team_section.find_elements(By.CSS_SELECTOR, "a[href]")]
-    except Exception:
-        team_lines = between(body_lines, "Team", "Fundraising")
-
-    investor_links = []
-    try:
-        fundraising_section = driver.find_element(By.ID, "detail_section_financials_fundraising")
-        fundraising_lines = split_lines(fundraising_section.text)
-        investor_links = [
-            {"text": item.text.strip(), "href": item.get_attribute("href") or ""}
-            for item in fundraising_section.find_elements(By.CSS_SELECTOR, "a[href]")
-        ]
-    except Exception:
-        fundraising_lines = between(body_lines, "Fundraising", "Related News")
-
-    link_info = classify_links(links, project.get("X"))
-
-    detail_summary = " ".join(details_block).strip()
-    investors = parse_investor_links(
-        investor_links,
-        str(project.get("project_name") or ""),
-        one_liner=str(one_liner or project.get("one_liner") or ""),
-        website_url=str(link_info["website_url"] or ""),
-    )
-    if not investors:
-        investors = parse_investors(
-            fundraising_lines,
-            project_name=str(project.get("project_name") or ""),
-            one_liner=str(one_liner or project.get("one_liner") or ""),
-            website_url=str(link_info["website_url"] or ""),
-        )
-    funding_rounds = parse_funding_rounds(fundraising_lines, investors)
-    team = parse_team_links(team_links)
-    if not team:
-        team = parse_team(team_lines)
-    news_links = link_info["news_links"]
-    funding_signals = [
-        item["title"]
-        for item in news_links
-        if re.search(r"\b(seed|series|funding|raised|round)\b", item["title"], flags=re.IGNORECASE)
-    ]
+    link_info = normalize_api_links(data, project.get("X"))
+    investors = normalize_api_investors(data.get("investors"))
+    team = normalize_api_team(data.get("team"))
+    tags = data.get("tags") if isinstance(data.get("tags"), list) else []
 
     return {
         "project_id": project_id,
-        "project_name": project.get("project_name"),
-        "detail_url": detail_url,
-        "one_liner": one_liner or project.get("one_liner"),
-        "details": detail_summary or None,
-        "founded": founded,
-        "tags": [line for line in tags_block if line not in {"Tags:"}],
+        "project_name": data.get("project_name") or project.get("project_name"),
+        "detail_url": data.get("rootdataurl") or project.get("rootdataurl"),
+        "one_liner": data.get("one_liner") or project.get("one_liner"),
+        "details": data.get("description") or None,
+        "founded": data.get("establishment_date"),
+        "tags": [str(tag).strip() for tag in tags if str(tag).strip()],
         "website_url": link_info["website_url"],
         "x_url": link_info["x_url"],
         "project_links": link_info["project_links"],
         "team": team,
         "investors": investors[:12],
-        "funding_rounds": funding_rounds,
-        "news_links": news_links,
-        "funding_signals": funding_signals[:3],
+        "funding_rounds": [],
+        "news_links": link_info["news_links"],
+        "funding_signals": [],
+        "api_payload": {
+            "contracts": data.get("contracts", []),
+            "similar_project": data.get("similar_project", []),
+            "active": data.get("active"),
+        },
         "fetched_at": utc_now_iso(),
     }
-
-
-def build_driver() -> webdriver.Chrome:
-    options = Options()
-    options.add_argument("--headless=new")
-    options.add_argument("--disable-gpu")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--window-size=1440,2000")
-    chrome_binary = os.getenv("ROOTDATA_CHROME_BINARY") or "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-    if Path(chrome_binary).exists():
-        options.binary_location = chrome_binary
-    driver = webdriver.Chrome(options=options)
-    driver.set_page_load_timeout(25)
-    return driver
 
 
 def main() -> int:
     load_dotenv_file()
     args = parse_args()
     config, _ = load_effective_yaml("config.yaml", "config.example.yaml")
+    sources_config, _ = load_effective_yaml("sources.yaml", "sources.example.yaml")
+    _, source_def = find_source_definition(sources_config, args.source_id)
     profile = config.get("profile", {})
     cache_dir_name = str(profile.get("cache_dir", "cache"))
     state_dir_name = str(profile.get("state_dir", "state"))
     cache_dir = ROOT / cache_dir_name / "rootdata"
     input_path = Path(args.input).resolve() if args.input else find_latest_cache(cache_dir)
     projects = resolve_projects(input_path, args.project_id, args.limit)
+    request_cfg = build_detail_request_config(source_def, args.base_url, args.path)
+    url = build_url(request_cfg)
+    headers, auth_env = inject_auth(request_cfg.get("headers", {}), source_def, args.dry_run)
 
     if args.dry_run:
         print(f"Input cache: {input_path.relative_to(ROOT)}")
+        print(f"Request URL: {url}")
+        print(f"Method: {request_cfg['method']}")
+        if auth_env:
+            print(f"Auth env: {auth_env}")
+        print(f"Request body template: {json.dumps(request_cfg.get('body', {}), ensure_ascii=False)}")
         print(f"Projects selected: {len(projects)}")
         for item in projects[: min(len(projects), 10)]:
             print(f"- {item.get('project_id')}: {item.get('project_name')} -> {item.get('rootdataurl')}")
         return 0
 
-    driver = None
     detail_records: list[dict[str, Any]] = []
     errors: list[dict[str, Any]] = []
-    try:
-        driver = build_driver()
-        for project in projects:
-            try:
-                detail_records.append(scrape_project(driver, project))
-            except (TimeoutException, WebDriverException, ValueError, Exception) as exc:
-                errors.append(
-                    {
-                        "project_id": project.get("project_id"),
-                        "project_name": project.get("project_name"),
-                        "error": str(exc),
-                    }
+    for project in projects:
+        try:
+            detail_records.append(
+                fetch_project_detail(
+                    url,
+                    request_cfg["method"],
+                    headers,
+                    request_cfg.get("body", {}),
+                    project,
                 )
-    finally:
-        if driver is not None:
-            try:
-                driver.quit()
-            except Exception:
-                pass
+            )
+        except (HTTPError, URLError, ValueError, RuntimeError, Exception) as exc:
+            errors.append(
+                {
+                    "project_id": project.get("project_id"),
+                    "project_name": project.get("project_name"),
+                    "error": str(exc),
+                }
+            )
 
     cache_path = cache_file_path(args.source_id, cache_dir_name)
     artifact = {
         "source_id": args.source_id,
         "fetched_at": utc_now_iso(),
         "input_cache": str(input_path.relative_to(ROOT)),
+        "request": {
+            "url": url,
+            "method": request_cfg["method"],
+            "headers": sorted(headers.keys()),
+            "body_template": request_cfg.get("body", {}),
+        },
         "project_count": len(projects),
         "detail_count": len(detail_records),
         "records": detail_records,

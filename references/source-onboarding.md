@@ -40,6 +40,7 @@ Optional request fields:
 - `request.headers`
 - `request.query`
 - `request.body`
+- `detail_request.*` for source-specific per-record enrichment calls when the adapter supports them
 
 Optional filtering fields:
 

@@ -57,7 +57,7 @@ flowchart LR
 
 ### Source 分层策略
 
-- `RootData` 负责广义项目发现和基础项目元信息。
+- `RootData` 负责广义项目发现和基础项目元信息。热门项目列表来自 `/open/skill/hot_index`，单项目 enrichment 使用 `/open/skill/get_item`，可直接返回描述、标签、官方链接、合约、相似项目和投资人等结构化字段，不需要浏览器自动化。
 - `BlockBeats` 负责更快的中文信号面，适合配合较强的二次筛选。
 - `DeFiLlama` 负责免费协议发现和赛道分类。
 - `GitHub` 负责 builder 持续交付和 repo 活跃度信号。
