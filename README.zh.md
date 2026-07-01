@@ -92,12 +92,10 @@ flowchart LR
 web3-opportunity-scout/
 ├── README.md
 ├── README.zh.md
-├── AGENTS.md
 ├── Makefile
 ├── config.example.yaml
 ├── sources.example.yaml
 ├── docs/                     # 对外公开文档
-├── internal/                 # 内部进度与构建记录
 ├── prompts/
 ├── references/
 ├── scripts/

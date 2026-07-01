@@ -33,7 +33,7 @@ The skill should produce durable opportunity artifacts, not just a one-off summa
 The repository should also stay publishable as an open-source skill:
 
 - public README files should remain user-facing
-- contributor workflow should live in `AGENTS.md` or `CONTRIBUTING*.md`
+- contributor workflow should live in `CONTRIBUTING*.md`; local agent notes can stay untracked
 - relative Markdown links should be preserved for GitHub portability
 - license and contribution entry points should stay visible in `README.md` and `README.zh.md`
 
@@ -108,7 +108,7 @@ Otherwise proceed with defaults, state assumptions, and keep momentum.
 - `README.md` is the English landing page and links to `README.zh.md`
 - `README.zh.md` is the Chinese landing page and links back to `README.md`
 - `CONTRIBUTING.md` and `CONTRIBUTING.zh.md` are the contributor entry points
-- `AGENTS.md` captures repository working rules for coding agents and maintainers
+- local agent working rules can live in untracked files when needed
 
 ## Minimum Artifact Contract
 

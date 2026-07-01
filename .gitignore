@@ -15,6 +15,10 @@ venv/
 !.env.example
 
 # Local overrides
+AGENTS.md
+internal/
+config.yaml
+sources.yaml
 config.local.yaml
 sources.local.yaml
 

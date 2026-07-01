@@ -91,12 +91,10 @@ The current implementation keeps deterministic processing in code and reserves n
 ```text
 web3-opportunity-scout/
 ├── README.md
-├── AGENTS.md
 ├── Makefile
 ├── config.example.yaml
 ├── sources.example.yaml
 ├── docs/                     # public product docs
-├── internal/                 # private progress / build notes
 ├── prompts/
 ├── references/
 ├── scripts/
