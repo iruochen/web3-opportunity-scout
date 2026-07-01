@@ -192,26 +192,68 @@ def render_link_markdown(project: dict[str, Any], locale: str) -> str:
     return " | ".join(f"[{label}]({url})" for label, url in items)
 
 
+def markdown_cell(value: Any) -> str:
+    return str(value).replace("|", "\\|").replace("\n", " ").strip()
+
+
+def render_markdown_overview_rows(projects: list[dict[str, Any]], locale: str) -> list[str]:
+    if locale == "zh":
+        rows = ["| # | 项目 | 评分 | 机会信号 | 首要动作 |", "|---:|---|---:|---|---|"]
+    else:
+        rows = ["| # | Project | Score | Opportunity signal | First action |", "|---:|---|---:|---|---|"]
+    for index, project in enumerate(projects, start=1):
+        label = label_zh(project["label"]) if locale == "zh" else project["label"]
+        signal = " ".join(localized_items(project, "opportunity_thesis", locale)) or "n/a"
+        action = " ".join(localized_items(project, "priority_checks", locale)) or "n/a"
+        rows.append(
+            "| "
+            + " | ".join(
+                [
+                    str(index),
+                    markdown_cell(project["project_name"]),
+                    markdown_cell(f"{project['score']} ({label})"),
+                    markdown_cell(signal),
+                    markdown_cell(action),
+                ]
+            )
+            + " |"
+        )
+    return rows
+
+
 def render_brief_en(projects: list[dict[str, Any]], focus: dict[str, Any]) -> str:
     lines = ["# Opportunity Brief", ""]
-    lines.append(f"- Focus chains: {', '.join(focus.get('chains', [])) or 'global'}")
-    lines.append(f"- Focus sectors: {', '.join(focus.get('sectors', [])) or 'general'}")
+    lines.append(f"> Focus: {', '.join(focus.get('chains', [])) or 'global'} / {', '.join(focus.get('sectors', [])) or 'general'}")
     lines.append("")
-    lines.append("## Top Opportunities")
+    lines.append("## Overview")
+    lines.append("")
+    lines.extend(render_markdown_overview_rows(projects, "en"))
+    lines.append("")
+    lines.append("## Details")
     lines.append("")
     for index, project in enumerate(projects, start=1):
         project_summary = build_project_setup(project, "en")
         action_premise = " ".join(localized_items(project, "opportunity_thesis", "en")) or "Only actionable when a concrete participation surface is live."
         fact_lines = build_fact_lines(project, "en")
         lines.append(f"### {index}. {project['project_name']}")
-        lines.append(f"- Score: {project['score']} ({project['label']})")
-        lines.append(f"- Project setup: {project_summary}")
-        lines.append(f"- Why track now: {action_premise}")
-        lines.append(f"- Participation angle: {' '.join(localized_items(project, 'participation_angle', 'en'))}")
-        lines.append(f"- Hard facts: {' | '.join(fact_lines) or 'n/a'}")
-        lines.append(f"- Priority checks: {' '.join(localized_items(project, 'priority_checks', 'en'))}")
-        lines.append(f"- Validation sources: {', '.join(localized_items(project, 'validation_sources', 'en'))}")
-        lines.append(f"- Links: {render_link_markdown(project, 'en')}")
+        lines.append("")
+        lines.append(f"**Score:** {project['score']} ({project['label']})")
+        lines.append("")
+        lines.append(f"**Setup:** {project_summary}")
+        lines.append("")
+        lines.append(f"**Why now:** {action_premise}")
+        lines.append("")
+        lines.append("**Next moves**")
+        lines.extend(f"- {item}" for item in localized_items(project, "participation_angle", "en") or ["n/a"])
+        lines.append("")
+        lines.append("**Hard facts**")
+        lines.extend(f"- {item}" for item in fact_lines or ["n/a"])
+        lines.append("")
+        lines.append(f"**Priority checks:** {' '.join(localized_items(project, 'priority_checks', 'en')) or 'n/a'}")
+        lines.append("")
+        lines.append(f"**Sources:** {', '.join(localized_items(project, 'validation_sources', 'en')) or 'n/a'}")
+        lines.append("")
+        lines.append(f"**Links:** {render_link_markdown(project, 'en')}")
         lines.append("")
     return "\n".join(lines).strip() + "\n"
 
@@ -287,24 +329,37 @@ def translate_validation_source_zh(text: str) -> str:
 
 def render_brief_zh(projects: list[dict[str, Any]], focus: dict[str, Any]) -> str:
     lines = ["# 机会简报", ""]
-    lines.append(f"- 关注链: {', '.join(focus.get('chains', [])) or 'global'}")
-    lines.append(f"- 关注赛道: {', '.join(focus.get('sectors', [])) or 'general'}")
+    lines.append(f"> 关注范围：{', '.join(focus.get('chains', [])) or 'global'} / {', '.join(focus.get('sectors', [])) or 'general'}")
     lines.append("")
-    lines.append("## 核心机会")
+    lines.append("## 总览")
+    lines.append("")
+    lines.extend(render_markdown_overview_rows(projects, "zh"))
+    lines.append("")
+    lines.append("## 详情")
     lines.append("")
     for index, project in enumerate(projects, start=1):
         project_summary = build_project_setup(project, "zh")
         action_premise = " ".join(localized_items(project, "opportunity_thesis", "zh")) or "只有在真实参与入口已经开放时才值得上手。"
         fact_lines = build_fact_lines(project, "zh")
         lines.append(f"### {index}. {project['project_name']}")
-        lines.append(f"- 评分: {project['score']} ({label_zh(project['label'])})")
-        lines.append(f"- 项目定位: {project_summary}")
-        lines.append(f"- 为什么值得跟: {action_premise}")
-        lines.append(f"- 参与动作: {' '.join(localized_items(project, 'participation_angle', 'zh'))}")
-        lines.append(f"- 硬线索: {' | '.join(fact_lines) or 'n/a'}")
-        lines.append(f"- 优先补查: {' '.join(localized_items(project, 'priority_checks', 'zh'))}")
-        lines.append(f"- 建议补查来源: {', '.join(localized_items(project, 'validation_sources', 'zh'))}")
-        lines.append(f"- 链接集合: {render_link_markdown(project, 'zh')}")
+        lines.append("")
+        lines.append(f"**评分：** {project['score']}（{label_zh(project['label'])}）")
+        lines.append("")
+        lines.append(f"**项目定位：** {project_summary}")
+        lines.append("")
+        lines.append(f"**为什么现在看：** {action_premise}")
+        lines.append("")
+        lines.append("**下一步动作**")
+        lines.extend(f"- {item}" for item in localized_items(project, "participation_angle", "zh") or ["n/a"])
+        lines.append("")
+        lines.append("**硬线索**")
+        lines.extend(f"- {item}" for item in fact_lines or ["n/a"])
+        lines.append("")
+        lines.append(f"**优先补查：** {' '.join(localized_items(project, 'priority_checks', 'zh')) or 'n/a'}")
+        lines.append("")
+        lines.append(f"**建议来源：** {', '.join(localized_items(project, 'validation_sources', 'zh')) or 'n/a'}")
+        lines.append("")
+        lines.append(f"**链接：** {render_link_markdown(project, 'zh')}")
         lines.append("")
     return "\n".join(lines).strip() + "\n"
 
@@ -406,7 +461,6 @@ def render_project_cards_html(projects: list[dict[str, Any]], locale: str) -> st
         next_label = "优先补查" if locale == "zh" else "Priority check"
         link_label = "链接集合" if locale == "zh" else "Links"
         fact_lines = build_fact_lines(project, locale)
-        compact_angle = participation[0] if participation else "n/a"
         opportunity_badges = build_opportunity_badges(project, locale)
         link_html = "".join(
             f'<a class="link-pill" href="{html_escape(url)}" target="_blank" rel="noopener noreferrer">{html_escape(label)}</a>'
@@ -414,26 +468,31 @@ def render_project_cards_html(projects: list[dict[str, Any]], locale: str) -> st
         ) or '<span class="link-pill muted">n/a</span>'
         tag_html = "".join(f'<span class="tag-pill">{html_escape(tag)}</span>' for tag in project.get("tags", [])[:4])
         badge_html = "".join(f'<span class="opportunity-pill">{html_escape(item)}</span>' for item in opportunity_badges)
+        fact_html = "".join(f"<li>{html_escape(item)}</li>" for item in fact_lines) or "<li>n/a</li>"
+        participation_html = "".join(f"<li>{html_escape(item)}</li>" for item in participation) or "<li>n/a</li>"
 
         cards.append(
             "\n".join(
                 [
                     '<article class="opportunity-card">',
                     '  <div class="card-top">',
-                    f'    <div class="card-rank">{index:02d}</div>',
-                    f'    <p class="score-pill">{score_label}: {score} · {label}</p>',
+                    f'    <span class="card-rank">{index:02d}</span>',
+                    f'    <span class="score-pill">{score_label}: {score} / {label}</span>',
                     "  </div>",
                     f"  <h2>{title}</h2>",
-                    f'  <div class="opportunity-row">{badge_html}</div>',
-                    f'  <div class="tag-row">{tag_html}</div>',
+                    f'  <div class="tag-row">{badge_html}{tag_html}</div>',
                     f'  <p class="setup-inline">{html_escape(project_setup)}</p>',
-                    f'  <div class="compact-grid"><div class="mini-block"><span class="block-label">{why_label}</span><p>{html_escape(action_premise)}</p></div><div class="mini-block"><span class="block-label">{angle_label}</span><p>{html_escape(compact_angle)}</p></div></div>',
+                    '  <div class="compact-grid">',
+                    f'    <section class="mini-block"><span class="block-label">{why_label}</span><p>{html_escape(action_premise)}</p></section>',
+                    f'    <section class="mini-block"><span class="block-label">{next_label}</span><p>{html_escape(primary_check)}</p></section>',
+                    "  </div>",
                     f'  <div class="card-links"><span class="block-label">{link_label}</span><div class="link-row">{link_html}</div></div>',
                     '  <details class="detail-drawer">',
-                    f'    <summary>{"展开详情" if locale == "zh" else "Open details"}</summary>',
-                    f'    <div class="card-block"><span class="block-label">{signal_label}</span><p>{html_escape(" | ".join(fact_lines) or "n/a")}</p></div>',
-                    f'    <div class="card-block"><span class="block-label">{next_label}</span><p>{html_escape(primary_check)}</p></div>',
-                    f'    <div class="card-block"><span class="block-label">{"更多参与动作" if locale == "zh" else "More participation moves"}</span><p>{html_escape(" ".join(participation) or "n/a")}</p></div>',
+                    f'    <summary>{"查看细节" if locale == "zh" else "View details"}</summary>',
+                    '    <div class="detail-grid">',
+                    f'      <section class="card-block"><span class="block-label">{signal_label}</span><ul>{fact_html}</ul></section>',
+                    f'      <section class="card-block"><span class="block-label">{angle_label}</span><ul>{participation_html}</ul></section>',
+                    "    </div>",
                     '  </details>',
                     "</article>",
                 ]
@@ -467,278 +526,263 @@ def render_brief_html(projects: list[dict[str, Any]], focus: dict[str, Any], loc
     <style>
       :root {{
         color-scheme: light;
-        --bg: #f2ecdf;
-        --ink: #101820;
-        --muted: #32414c;
-        --accent: #b5532f;
-        --accent-2: #0e625d;
-        --accent-soft: #ffe2d2;
-        --accent-line: rgba(191, 91, 52, 0.18);
+        --bg: #f6f7f9;
+        --ink: #111827;
+        --muted: #5b6472;
+        --subtle: #7c8594;
+        --accent: #2563eb;
+        --accent-2: #047857;
+        --accent-soft: #eff6ff;
         --card: #ffffff;
-        --border: rgba(16, 24, 32, 0.14);
-        --border-strong: rgba(16, 24, 32, 0.22);
-        --shadow: 0 12px 28px rgba(16, 24, 32, 0.08);
-        --shadow-hover: 0 20px 50px rgba(20, 32, 42, 0.13);
-        --panel: #fff9f2;
-        --tag: #ece3d6;
-        --tag-ink: #233642;
-        --pill-bg: #1a2732;
-        --pill-ink: #fdfefe;
-        --opportunity-bg: #15212a;
-        --opportunity-ink: #f7fafb;
+        --line: #d8dee8;
+        --line-strong: #b9c2d0;
+        --panel: #f9fafb;
+        --tag: #eef2f7;
+        --tag-ink: #374151;
+        --score-bg: #111827;
+        --score-ink: #ffffff;
       }}
       * {{ box-sizing: border-box; }}
       body {{
         margin: 0;
-        font-family: "Avenir Next", "SF Pro Display", "Helvetica Neue", sans-serif;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         color: var(--ink);
-        background:
-          linear-gradient(180deg, #fbf7f0 0%, var(--bg) 100%);
+        background: var(--bg);
       }}
       main {{
-        max-width: 1120px;
+        max-width: 1180px;
         margin: 0 auto;
-        padding: 56px 20px 72px;
+        padding: 40px 20px 56px;
       }}
       .hero {{
-        padding: 36px;
-        border: 1px solid var(--border);
-        border-radius: 32px;
-        background:
-          linear-gradient(135deg, #ffffff, #fdf8f1);
-        box-shadow: var(--shadow);
-        position: relative;
-        overflow: hidden;
-      }}
-      .hero::after {{
-        content: "";
-        position: absolute;
-        inset: auto -4rem -5rem auto;
-        width: 14rem;
-        height: 14rem;
-        border-radius: 999px;
-        background: radial-gradient(circle, rgba(12,107,100,0.08), transparent 68%);
-        pointer-events: none;
+        padding: 28px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--card);
       }}
       h1 {{
-        margin: 0 0 10px;
-        font-size: clamp(2.2rem, 4vw, 4rem);
-        line-height: 0.92;
-        letter-spacing: -0.03em;
+        margin: 0 0 8px;
+        font-size: 2.5rem;
+        line-height: 1.08;
+        letter-spacing: 0;
       }}
       .subtitle {{
-        margin: 0 0 18px;
+        margin: 0;
         color: var(--muted);
         font-size: 1rem;
-        font-weight: 600;
+        font-weight: 500;
         max-width: 62ch;
       }}
       .meta {{
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        gap: 14px;
-        margin-top: 20px;
+        gap: 10px;
+        margin-top: 24px;
       }}
       .meta-card, .opportunity-card {{
-        border: 1px solid var(--border);
-        border-radius: 24px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
         background: var(--card);
-        backdrop-filter: blur(12px);
-        box-shadow: var(--shadow);
       }}
       .meta-card {{
-        padding: 16px 18px 18px;
-        border-color: var(--accent-line);
-        background: rgba(255, 255, 255, 0.98);
+        padding: 13px 14px;
+        background: var(--panel);
       }}
       .meta-card strong {{
         display: block;
-        margin-bottom: 6px;
+        margin-bottom: 4px;
         font-size: 0.78rem;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: var(--muted);
+        letter-spacing: 0;
+        color: var(--subtle);
       }}
       .meta-card span {{
-        font-size: 1rem;
+        font-size: 0.96rem;
         font-weight: 600;
       }}
       .opportunities {{
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-        gap: 20px;
-        margin-top: 30px;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+        gap: 16px;
+        margin-top: 18px;
       }}
       .opportunity-card {{
         position: relative;
-        padding: 20px 18px 16px;
-        overflow: hidden;
-        transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+        min-width: 0;
+        padding: 18px;
+        transition: border-color 160ms ease, background 160ms ease;
+        overflow-wrap: anywhere;
       }}
       .opportunity-card:hover {{
-        transform: translateY(-2px);
-        box-shadow: var(--shadow-hover);
-        border-color: var(--border-strong);
-      }}
-      .opportunity-card::before {{
-        content: "";
-        position: absolute;
-        inset: 0 0 auto 0;
-        height: 4px;
-        background: linear-gradient(90deg, var(--accent), var(--accent-2));
+        border-color: var(--line-strong);
+        background: #fcfdff;
       }}
       .card-top {{
         display: flex;
         justify-content: space-between;
         align-items: center;
         gap: 12px;
-        margin-bottom: 14px;
+        margin-bottom: 12px;
       }}
       .card-rank {{
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 44px;
-        height: 44px;
-        border-radius: 999px;
-        background: var(--accent-soft);
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        background: var(--panel);
+        border: 1px solid var(--line);
         color: var(--accent);
         font-weight: 700;
-        box-shadow: inset 0 0 0 1px rgba(191, 91, 52, 0.1);
+        font-size: 0.9rem;
       }}
       .opportunity-card h2 {{
-        margin: 0 0 8px;
-        font-size: 1.35rem;
-        letter-spacing: -0.02em;
-        line-height: 1.05;
+        margin: 0 0 10px;
+        font-size: 1.28rem;
+        letter-spacing: 0;
+        line-height: 1.18;
         color: var(--ink);
-      }}
-      .opportunity-row {{
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-bottom: 10px;
       }}
       .opportunity-pill {{
         display: inline-flex;
         align-items: center;
-        padding: 7px 11px;
-        border-radius: 999px;
-        background: var(--opportunity-bg);
-        color: var(--opportunity-ink);
+        padding: 5px 8px;
+        border-radius: 6px;
+        background: #ecfdf5;
+        color: #065f46;
         font-size: 0.78rem;
         font-weight: 700;
-        letter-spacing: 0.02em;
+        letter-spacing: 0;
       }}
       .score-pill {{
-        display: inline-block;
+        display: inline-flex;
+        align-items: center;
+        min-height: 34px;
         margin: 0;
-        padding: 9px 13px;
-        border-radius: 999px;
-        background: linear-gradient(135deg, var(--pill-bg), #2a3946);
-        color: var(--pill-ink);
-        font-size: 0.88rem;
+        padding: 7px 10px;
+        border-radius: 8px;
+        background: var(--score-bg);
+        color: var(--score-ink);
+        font-size: 0.84rem;
         font-weight: 700;
-        letter-spacing: 0.01em;
-        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
+        letter-spacing: 0;
+        text-align: right;
       }}
       .tag-row {{
         display: flex;
         flex-wrap: wrap;
-        gap: 8px;
-        margin-bottom: 12px;
+        gap: 6px;
+        margin-bottom: 14px;
       }}
       .tag-pill {{
         display: inline-flex;
         align-items: center;
-        padding: 6px 10px;
-        border-radius: 999px;
+        padding: 5px 8px;
+        border-radius: 6px;
         background: var(--tag);
         color: var(--tag-ink);
-        font-size: 0.81rem;
-        border: 1px solid rgba(20, 32, 42, 0.06);
+        font-size: 0.8rem;
+        border: 1px solid var(--line);
         font-weight: 600;
       }}
       .opportunity-card p {{
         margin: 0 0 12px;
-        line-height: 1.48;
+        line-height: 1.58;
         color: var(--muted);
       }}
       .setup-inline {{
-        margin-bottom: 12px;
-        font-size: 0.96rem;
-        color: #23333d;
-        font-weight: 600;
+        margin-bottom: 14px;
+        font-size: 0.95rem;
+        color: #263241;
+        font-weight: 500;
       }}
       .compact-grid {{
         display: grid;
         grid-template-columns: 1fr;
-        gap: 10px;
-        margin-bottom: 12px;
+        gap: 8px;
+        margin-bottom: 14px;
       }}
       .mini-block {{
-        padding: 10px 12px;
-        border-radius: 16px;
+        padding: 12px;
+        border-radius: 8px;
         background: var(--panel);
-        border: 1px solid rgba(20, 32, 42, 0.05);
-        box-shadow: inset 0 1px 0 rgba(255,255,255,0.65);
+        border: 1px solid #e7ebf1;
       }}
       .mini-block p {{
         margin: 0;
-        color: #22343f;
+        color: #263241;
         font-weight: 500;
       }}
+      .detail-grid {{
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }}
       .card-block {{
-        margin: 0 0 12px;
-        padding: 12px 13px 11px;
-        border-radius: 18px;
+        margin: 0;
+        padding: 12px;
+        border-radius: 8px;
         background: var(--panel);
-        border: 1px solid rgba(20, 32, 42, 0.06);
-        box-shadow: inset 0 1px 0 rgba(255,255,255,0.65);
+        border: 1px solid #e7ebf1;
       }}
       .block-label {{
         display: inline-block;
         margin-bottom: 6px;
         font-size: 0.76rem;
         font-weight: 700;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: var(--accent);
+        letter-spacing: 0;
+        color: var(--subtle);
+      }}
+      ul {{
+        margin: 0;
+        max-width: 100%;
+        padding-left: 0;
+        color: var(--muted);
+        list-style-position: inside;
+        line-height: 1.55;
+        overflow-wrap: anywhere;
+      }}
+      li {{
+        max-width: 100%;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }}
+      li + li {{
+        margin-top: 6px;
       }}
       .card-links {{
-        margin-top: 4px;
         margin-bottom: 8px;
       }}
       .link-row {{
         display: flex;
         flex-wrap: wrap;
-        gap: 8px;
+        gap: 6px;
       }}
       .link-pill {{
         display: inline-flex;
         align-items: center;
-        padding: 8px 12px;
-        border-radius: 999px;
+        min-height: 34px;
+        padding: 7px 10px;
+        border-radius: 8px;
         background: #ffffff;
-        border: 1px solid rgba(20, 32, 42, 0.1);
+        border: 1px solid var(--line);
         color: var(--accent);
         text-decoration: none;
         font-weight: 700;
-        font-size: 0.85rem;
-        transition: transform 140ms ease, border-color 140ms ease, background 140ms ease;
+        font-size: 0.84rem;
+        transition: border-color 140ms ease, background 140ms ease;
       }}
       .link-pill:hover {{
-        transform: translateY(-1px);
-        border-color: rgba(191, 91, 52, 0.2);
-        background: #fff;
+        border-color: #93b4f4;
+        background: var(--accent-soft);
       }}
       .link-pill.muted {{
         color: var(--muted);
       }}
       .detail-drawer {{
-        margin-top: 10px;
-        border-top: 1px solid rgba(20, 32, 42, 0.08);
-        padding-top: 10px;
+        margin-top: 12px;
+        border-top: 1px solid var(--line);
+        padding-top: 12px;
       }}
       .detail-drawer summary {{
         cursor: pointer;
@@ -748,47 +792,64 @@ def render_brief_html(projects: list[dict[str, Any]], focus: dict[str, Any], loc
         list-style: none;
         display: inline-flex;
         align-items: center;
-        gap: 8px;
+        min-height: 34px;
+        padding-right: 10px;
       }}
-      .detail-drawer summary::before {{
-        content: "+";
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 18px;
-        height: 18px;
-        border-radius: 999px;
-        background: var(--accent-soft);
-        color: var(--accent);
-        font-size: 0.82rem;
+      .detail-drawer summary::after {{
+        content: ">";
+        margin-left: 8px;
+        font-size: 0.9rem;
+        transition: transform 140ms ease;
       }}
-      .detail-drawer[open] summary::before {{
-        content: "-";
+      .detail-drawer[open] summary::after {{
+        transform: rotate(90deg);
       }}
       .detail-drawer summary::-webkit-details-marker {{
         display: none;
       }}
       .detail-drawer[open] summary {{
-        margin-bottom: 10px;
+        margin-bottom: 12px;
       }}
       strong, b {{
         color: var(--ink);
       }}
       @media (min-width: 900px) {{
         .compact-grid {{
-          grid-template-columns: 1.15fr 0.85fr;
+          grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+        }}
+        .detail-grid {{
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
         }}
       }}
       @media (max-width: 640px) {{
         main {{
-          padding: 28px 14px 40px;
+          padding: 18px 12px 32px;
         }}
         .hero {{
-          padding: 22px;
-          border-radius: 22px;
+          padding: 18px;
+        }}
+        h1 {{
+          font-size: 2rem;
+          line-height: 1.12;
+        }}
+        .meta {{
+          grid-template-columns: 1fr;
+          margin-top: 18px;
+        }}
+        .opportunities {{
+          grid-template-columns: 1fr;
+          gap: 12px;
         }}
         .opportunity-card {{
-          padding: 18px 16px 14px;
+          padding: 16px;
+        }}
+        .card-top {{
+          align-items: flex-start;
+        }}
+        .score-pill {{
+          max-width: calc(100% - 46px);
+          justify-content: flex-end;
+          white-space: normal;
         }}
       }}
     </style>
