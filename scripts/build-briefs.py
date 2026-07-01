@@ -264,6 +264,19 @@ def access_summary(project: dict[str, Any], locale: str) -> str:
     return " / ".join(items[:4])
 
 
+def opportunity_meta(project: dict[str, Any], locale: str) -> str:
+    tier = str(project.get("opportunity_tier") or "").strip()
+    token_status = str(project.get("token_status") or "").strip()
+    actionability = str(project.get("actionability_level") or "").strip()
+    stage = str(project.get("stage") or "").strip()
+    values = [item for item in (tier, token_status, actionability, stage) if item]
+    if not values:
+        return "n/a"
+    if locale == "zh":
+        return " / ".join(values)
+    return " / ".join(values)
+
+
 def render_markdown_overview_rows(projects: list[dict[str, Any]], locale: str) -> list[str]:
     if locale == "zh":
         rows = ["| # | 项目 | 评分 | 机会信号 | 参与角度 |", "|---:|---|---:|---|---|"]
@@ -273,13 +286,14 @@ def render_markdown_overview_rows(projects: list[dict[str, Any]], locale: str) -
         label = label_zh(project["label"]) if locale == "zh" else project["label"]
         signal = " ".join(localized_items(project, "opportunity_thesis", locale)) or "n/a"
         action = access_summary(project, locale)
+        score_text = f"{project['score']} ({label}; {opportunity_meta(project, locale)})"
         rows.append(
             "| "
             + " | ".join(
                 [
                     str(index),
                     markdown_cell(project["project_name"]),
-                    markdown_cell(f"{project['score']} ({label})"),
+                    markdown_cell(score_text),
                     markdown_cell(signal),
                     markdown_cell(action),
                 ]
@@ -306,6 +320,8 @@ def render_brief_en(projects: list[dict[str, Any]], focus: dict[str, Any]) -> st
         lines.append(f"### {index}. {project['project_name']}")
         lines.append("")
         lines.append(f"**Score:** {project['score']} ({project['label']})")
+        lines.append("")
+        lines.append(f"**Tier / token:** {opportunity_meta(project, 'en')}")
         lines.append("")
         lines.append(f"**Setup:** {project_summary}")
         lines.append("")
@@ -411,6 +427,8 @@ def render_brief_zh(projects: list[dict[str, Any]], focus: dict[str, Any]) -> st
         lines.append("")
         lines.append(f"**评分：** {project['score']}（{label_zh(project['label'])}）")
         lines.append("")
+        lines.append(f"**分层 / Token：** {opportunity_meta(project, 'zh')}")
+        lines.append("")
         lines.append(f"**项目定位：** {project_summary}")
         lines.append("")
         lines.append(f"**为什么现在看：** {action_premise}")
@@ -434,6 +452,7 @@ def render_thesis_en(project: dict[str, Any]) -> str:
             f"# {project['project_name']} Thesis",
             "",
             f"- Score: {project['score']} ({project['label']})",
+            f"- Tier / token: {opportunity_meta(project, 'en')}",
             f"- Links: {render_link_markdown(project, 'en')}",
             f"- Tags: {', '.join(project.get('tags', [])) or 'n/a'}",
             "",
@@ -471,6 +490,7 @@ def render_thesis_zh(project: dict[str, Any]) -> str:
             f"# {project['project_name']} 机会 Thesis",
             "",
             f"- 评分: {project['score']} ({label_zh(project['label'])})",
+            f"- 分层 / Token: {opportunity_meta(project, 'zh')}",
             f"- 链接集合: {render_link_markdown(project, 'zh')}",
             f"- 标签: {', '.join(project.get('tags', [])) or 'n/a'}",
             "",
@@ -508,6 +528,7 @@ def render_project_cards_html(projects: list[dict[str, Any]], locale: str) -> st
         title = html_escape(project["project_name"])
         score = html_escape(str(project["score"]))
         label = html_escape(label_zh(project["label"]) if locale == "zh" else project["label"])
+        meta = html_escape(opportunity_meta(project, locale))
         participation = localized_items(project, "participation_angle", locale)
         primary_action = access_summary(project, locale)
         score_label = "评分" if locale == "zh" else "Score"
@@ -543,6 +564,7 @@ def render_project_cards_html(projects: list[dict[str, Any]], locale: str) -> st
                     f'    <span class="score-pill">{score_label}: {score} / {label}</span>',
                     "  </div>",
                     f"  <h2>{title}</h2>",
+                    f'  <p class="meta-inline">{meta}</p>',
                     f'  <div class="tag-row">{badge_html}{tag_html}</div>',
                     f'  <p class="setup-inline">{html_escape(project_setup)}</p>',
                     '  <div class="compact-grid">',
@@ -758,6 +780,12 @@ def render_brief_html(projects: list[dict[str, Any]], focus: dict[str, Any], loc
         font-size: 0.95rem;
         color: #263241;
         font-weight: 500;
+      }}
+      .meta-inline {{
+        margin: 0 0 10px;
+        font-size: 0.82rem;
+        color: var(--subtle);
+        font-weight: 700;
       }}
       .compact-grid {{
         display: grid;

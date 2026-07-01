@@ -24,6 +24,7 @@ def load_module(filename: str, name: str):
 
 build_combined_module = load_module("build-combined-normalized.py", "build_combined_normalized_module")
 run_pipeline_module = load_module("run-pipeline.py", "run_pipeline_module")
+merge_module = load_module("merge-project-entities.py", "merge_project_entities_module")
 
 
 class CombinedPipelineTests(unittest.TestCase):
@@ -61,6 +62,19 @@ class CombinedPipelineTests(unittest.TestCase):
             run_pipeline_module.pipeline_capable_sources(sources_config),
             ["rootdata_projects", "blockbeats_original_newsflash"],
         )
+
+    def test_canonical_group_key_prefers_project_domain(self) -> None:
+        first = {
+            "project_name": "Metal",
+            "entity_key": "metal",
+            "website_url": "https://metal.example/",
+        }
+        second = {
+            "project_name": "Metal Network",
+            "entity_key": "metal-network",
+            "project_url": "https://metal.example/docs",
+        }
+        self.assertEqual(merge_module.canonical_group_key(first), merge_module.canonical_group_key(second))
 
 
 if __name__ == "__main__":

@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 from collections import defaultdict
 from typing import Any
+from urllib.parse import urlparse
 
 from common import (
     default_event_memory,
@@ -27,6 +28,45 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--input", help="Optional path to normalized JSON file")
     parser.add_argument("--source-id", help="Source id to annotate during merge and to resolve latest artifacts")
     return parser.parse_args()
+
+
+def normalized_domain(url: str | None) -> str | None:
+    raw = str(url or "").strip()
+    if not raw:
+        return None
+    parsed = urlparse(raw if "://" in raw else f"https://{raw}")
+    host = parsed.netloc.lower().removeprefix("www.")
+    if not host or "." not in host:
+        return None
+    blocked = {
+        "rootdata.com",
+        "x.com",
+        "twitter.com",
+        "theblockbeats.info",
+        "github.com",
+        "defillama.com",
+    }
+    if host in blocked or any(host.endswith(f".{domain}") for domain in blocked):
+        return None
+    return host
+
+
+def canonical_group_key(record: dict[str, Any]) -> str:
+    for field_name in ("website_url", "project_url"):
+        domain = normalized_domain(record.get(field_name))
+        if domain:
+            return f"domain:{domain}"
+
+    raw_ref = record.get("raw_ref", {})
+    raw_ref = raw_ref if isinstance(raw_ref, dict) else {}
+    x_url = str(record.get("x_url") or raw_ref.get("x_url") or "").strip()
+    parsed_x = urlparse(x_url if "://" in x_url else f"https://{x_url}") if x_url else None
+    if parsed_x and parsed_x.netloc.lower().removeprefix("www.") in {"x.com", "twitter.com"}:
+        handle = parsed_x.path.strip("/").split("/")[0].lower()
+        if handle:
+            return f"x:{handle}"
+
+    return str(record.get("entity_key", record.get("id")))
 
 
 def pick_latest_observed(records: list[dict[str, Any]]) -> str | None:
@@ -279,7 +319,7 @@ def main() -> int:
     for record in records:
         if not isinstance(record, dict):
             continue
-        grouped[str(record.get("entity_key", record.get("id")))].append(record)
+        grouped[canonical_group_key(record)].append(record)
 
     merged_projects = [
         merge_group(entity_key, group_records, resolved_source_id)

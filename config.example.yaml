@@ -16,8 +16,10 @@ focus:
 
 risk:
   profile: balanced
-  min_confidence: 0.55
-  min_opportunity_score: 65
+  min_confidence: 0.6
+  min_opportunity_score: 72
+  strong_candidate_score: 80
+  tier1_score: 84
 
 memory:
   dedupe_window_days: 21
@@ -35,10 +37,36 @@ filters:
   active_profile: opportunity
   profiles:
     opportunity:
-      min_confidence: 0.0
+      min_confidence: 0.55
       include_any_tags: []
-      exclude_title_keywords: []
-      exclude_summary_keywords: []
+      exclude_title_keywords:
+        - ETF
+        - CEX
+        - 币安
+        - 欧易
+        - OKX
+        - Coinbase
+        - 美股
+        - 韩股
+        - 盘前
+        - 净流入
+      exclude_summary_keywords:
+        - ETF
+        - 现货ETF
+        - CEX
+        - 已上线币安
+        - listed on Binance
+        - listed on Coinbase
+        - 美股
+        - 韩股
+        - 盘前
+        - 净流入
+      exclude_established_projects: true
+      require_any_signal:
+        - participation
+        - funding
+        - builder
+        - early_stage
     market:
       min_confidence: 0.0
       include_any_tags: []

@@ -25,7 +25,7 @@ sources:
       category: discovery
       label: RootData hot projects
       cadence: daily
-      notes: Requires ROOTDATA_API_KEY. Uses the RootData hot_index endpoint as an initial discovery source.
+      notes: Requires ROOTDATA_API_KEY. Hot index is attention-biased and should be used as enrichment, not the primary early-stage source.
       auth:
         kind: bearer
         env: ROOTDATA_API_KEY
@@ -58,6 +58,50 @@ sources:
       label: OpenNews project discovery
       cadence: daily
       notes: Placeholder for future integration. Add auth and request config when credentials are available.
+    - id: blockbeats_financing_newsflash
+      enabled: false
+      adapter: blockbeats
+      type: api
+      category: discovery
+      label: BlockBeats financing newsflash
+      cadence: hourly
+      notes: Requires BLOCKBEATS_API_KEY. Prefer this over original-only newsflash for early funding discovery.
+      auth:
+        kind: header
+        env: BLOCKBEATS_API_KEY
+        header: api-key
+      request:
+        base_url: https://api-pro.theblockbeats.info
+        path: /v1/newsflash/financing
+        method: GET
+        headers:
+          Accept: application/json
+        query:
+          page: 1
+          size: 20
+          lang: cn
+    - id: blockbeats_onchain_newsflash
+      enabled: false
+      adapter: blockbeats
+      type: api
+      category: discovery
+      label: BlockBeats on-chain newsflash
+      cadence: hourly
+      notes: Requires BLOCKBEATS_API_KEY. Captures on-chain launches, incentives, and protocol activity.
+      auth:
+        kind: header
+        env: BLOCKBEATS_API_KEY
+        header: api-key
+      request:
+        base_url: https://api-pro.theblockbeats.info
+        path: /v1/newsflash/onchain
+        method: GET
+        headers:
+          Accept: application/json
+        query:
+          page: 1
+          size: 20
+          lang: cn
     - id: blockbeats_original_newsflash
       enabled: false
       adapter: blockbeats
@@ -95,7 +139,7 @@ sources:
           size: 10
           lang: cn
     - id: github_trending_builders
-      enabled: false
+      enabled: true
       adapter: github
       type: api
       category: discovery
@@ -124,7 +168,7 @@ sources:
           per_page: 10
           page: 1
     - id: defillama_new_protocols
-      enabled: false
+      enabled: true
       adapter: defillama
       type: api
       category: discovery
@@ -176,6 +220,21 @@ sources:
       notes: Good source for early teams before broad market awareness.
 
   market:
+    - id: crypto_fundraising_recent
+      enabled: true
+      adapter: crypto-fundraising
+      type: webpage
+      category: market
+      label: Crypto Fundraising recent deals
+      cadence: daily
+      notes: Public recent fundraising table used as a no-key funding signal source.
+      request:
+        base_url: https://crypto-fundraising.info
+        path: /
+        method: GET
+        headers:
+          Accept: text/html
+          User-Agent: web3-opportunity-scout
     - id: funding_signals
       enabled: true
       type: api

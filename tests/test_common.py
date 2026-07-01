@@ -24,6 +24,8 @@ from scripts.common import (
     latest_json_file_for_source,
     project_actionability_score,
     project_participation_signals,
+    project_stage,
+    project_token_status,
     start_pipeline_run,
     update_pipeline_stage,
     latest_json_file,
@@ -91,6 +93,15 @@ class InferenceTests(unittest.TestCase):
         }
         self.assertIn("waitlist", project_participation_signals(project))
         self.assertGreater(project_actionability_score(project), 40.0)
+
+    def test_token_status_and_stage_capture_pre_token_window(self) -> None:
+        project = {
+            "summary": "Pre-token privacy infra opens testnet waitlist and points campaign.",
+            "signals": ["GitHub commits active"],
+            "source_ids": ["github_trending_builders"],
+        }
+        self.assertEqual(project_token_status(project), "pre_token_likely")
+        self.assertEqual(project_stage(project), "actionable_early")
 
 
 class RunStateTests(unittest.TestCase):

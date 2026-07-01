@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 from common import (
     enabled_source_entries,
@@ -17,6 +19,8 @@ from common import (
     start_pipeline_run,
     state_dir_from_config,
     update_pipeline_stage,
+    utc_now_iso,
+    write_json_file,
 )
 
 
@@ -26,7 +30,7 @@ PYTHON = sys.executable
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run the current end-to-end opportunity pipeline.")
-    parser.add_argument("--source", default="rootdata_projects", help="Source id defined in sources.yaml")
+    parser.add_argument("--source", default="combined_market_scan", help="Source id defined in sources.yaml or combined_market_scan")
     parser.add_argument("--skip-fetch", action="store_true", help="Reuse existing cache and skip live fetch")
     parser.add_argument("--top", type=int, default=15, help="Top ranked projects to keep in the watchlist and markdown output")
     parser.add_argument("--days", type=int, default=1, help="Days parameter for sources that support it")
@@ -53,6 +57,22 @@ def pipeline_capable_sources(sources_config: dict[str, object]) -> list[str]:
     return source_ids
 
 
+def source_preflight_status(source_id: str, source_def: dict[str, Any]) -> dict[str, Any]:
+    adapter = resolve_source_adapter(source_id, source_def)
+    script_path = ROOT / "scripts" / f"fetch-{adapter}.py"
+    auth_cfg = source_def.get("auth", {})
+    env_name = str(auth_cfg.get("env") or "").strip() if isinstance(auth_cfg, dict) else ""
+    if env_name and not os.getenv(env_name):
+        return {"source_id": source_id, "adapter": adapter, "available": False, "reason": f"missing_env:{env_name}"}
+    if not script_path.exists():
+        return {"source_id": source_id, "adapter": adapter, "available": False, "reason": f"missing_fetch_adapter:{script_path.name}"}
+    return {"source_id": source_id, "adapter": adapter, "available": True, "reason": "ok"}
+
+
+def write_source_status(state_dir: Path, statuses: dict[str, dict[str, Any]]) -> None:
+    write_json_file(state_dir / "source-status.json", {"updated_at": utc_now_iso(), "sources": statuses})
+
+
 def main() -> int:
     load_dotenv_file()
     args = parse_args()
@@ -70,26 +90,59 @@ def main() -> int:
             child_sources = pipeline_capable_sources(sources_config)
             if not child_sources:
                 raise ValueError("No enabled adapter-backed sources are available for combined_market_scan")
-            include_args: list[str] = []
-            for source_id in child_sources:
-                include_args.extend(["--include-source", source_id])
 
-            for child_source in child_sources:
+            source_statuses: dict[str, dict[str, Any]] = {}
+            runnable_sources: list[str] = []
+            for source_id in child_sources:
+                _, source_def = find_source_definition(sources_config, source_id)
+                status = source_preflight_status(source_id, source_def)
+                source_statuses[source_id] = status
+                if status["available"]:
+                    runnable_sources.append(source_id)
+                else:
+                    print(f"SKIP  {source_id}: {status['reason']}", flush=True)
+            write_source_status(state_dir, source_statuses)
+            if not runnable_sources:
+                raise ValueError("No preflight-available adapter-backed sources are available for combined_market_scan")
+
+            successful_sources: list[str] = []
+            for child_source in runnable_sources:
                 _, source_def = find_source_definition(sources_config, child_source)
                 adapter = resolve_source_adapter(child_source, source_def)
-                if not args.skip_fetch:
-                    update_pipeline_stage(state_dir, run_id, f"fetch:{child_source}")
-                    run_step([f"scripts/fetch-{adapter}.py", "--source-id", child_source, "--days", str(args.days)])
-                    update_pipeline_stage(state_dir, run_id, f"fetch:{child_source}", completed=True)
+                try:
+                    if not args.skip_fetch:
+                        update_pipeline_stage(state_dir, run_id, f"fetch:{child_source}")
+                        run_step([f"scripts/fetch-{adapter}.py", "--source-id", child_source, "--days", str(args.days)])
+                        update_pipeline_stage(state_dir, run_id, f"fetch:{child_source}", completed=True)
 
-                    if adapter == "rootdata":
-                        update_pipeline_stage(state_dir, run_id, f"fetch-details:{child_source}")
-                        run_step(["scripts/fetch-rootdata-details.py", "--source-id", child_source])
-                        update_pipeline_stage(state_dir, run_id, f"fetch-details:{child_source}", completed=True)
+                        if adapter == "rootdata":
+                            update_pipeline_stage(state_dir, run_id, f"fetch-details:{child_source}")
+                            run_step(["scripts/fetch-rootdata-details.py", "--source-id", child_source])
+                            update_pipeline_stage(state_dir, run_id, f"fetch-details:{child_source}", completed=True)
 
-                update_pipeline_stage(state_dir, run_id, f"normalize:{child_source}")
-                run_step([f"scripts/normalize-{adapter}.py", "--source-id", child_source])
-                update_pipeline_stage(state_dir, run_id, f"normalize:{child_source}", completed=True)
+                    update_pipeline_stage(state_dir, run_id, f"normalize:{child_source}")
+                    run_step([f"scripts/normalize-{adapter}.py", "--source-id", child_source])
+                    update_pipeline_stage(state_dir, run_id, f"normalize:{child_source}", completed=True)
+                    successful_sources.append(child_source)
+                    source_statuses[child_source] = {**source_statuses[child_source], "available": True, "reason": "ok"}
+                    write_source_status(state_dir, source_statuses)
+                except subprocess.CalledProcessError as exc:
+                    source_statuses[child_source] = {
+                        **source_statuses.get(child_source, {"source_id": child_source, "adapter": adapter}),
+                        "available": False,
+                        "reason": f"command_failed:{exc.returncode}",
+                    }
+                    write_source_status(state_dir, source_statuses)
+                    if not bool(config.get("run", {}).get("skip_unavailable_sources", True)):
+                        raise
+                    print(f"SKIP  {child_source}: command failed with exit code {exc.returncode}", flush=True)
+                    continue
+
+            if not successful_sources:
+                raise ValueError("All combined_market_scan child sources failed or were unavailable")
+            include_args: list[str] = []
+            for source_id in successful_sources:
+                include_args.extend(["--include-source", source_id])
 
             update_pipeline_stage(state_dir, run_id, "combine-normalized")
             run_step(["scripts/build-combined-normalized.py", "--source-id", args.source, *include_args])
@@ -118,6 +171,11 @@ def main() -> int:
             update_pipeline_stage(state_dir, run_id, "briefs")
             run_step(["scripts/build-briefs.py", "--source-id", args.source, "--top", str(min(args.top, 8))])
             update_pipeline_stage(state_dir, run_id, "briefs", completed=True)
+
+            update_pipeline_stage(state_dir, run_id, "telegram")
+            run_step(["scripts/build-telegram-digest.py", "--source-id", args.source, "--mode", "intraday", "--top", str(args.top)])
+            run_step(["scripts/build-telegram-digest.py", "--source-id", args.source, "--mode", "early", "--top", str(args.top)])
+            update_pipeline_stage(state_dir, run_id, "telegram", completed=True)
 
             update_pipeline_stage(state_dir, run_id, "check-run-state")
             run_step(["scripts/check-run-state.py"])
@@ -166,6 +224,11 @@ def main() -> int:
         update_pipeline_stage(state_dir, run_id, "briefs")
         run_step(["scripts/build-briefs.py", "--source-id", args.source, "--top", str(min(args.top, 8))])
         update_pipeline_stage(state_dir, run_id, "briefs", completed=True)
+
+        update_pipeline_stage(state_dir, run_id, "telegram")
+        run_step(["scripts/build-telegram-digest.py", "--source-id", args.source, "--mode", "intraday", "--top", str(args.top)])
+        run_step(["scripts/build-telegram-digest.py", "--source-id", args.source, "--mode", "early", "--top", str(args.top)])
+        update_pipeline_stage(state_dir, run_id, "telegram", completed=True)
 
         update_pipeline_stage(state_dir, run_id, "check-run-state")
         run_step(["scripts/check-run-state.py"])

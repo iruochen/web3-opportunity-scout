@@ -51,6 +51,22 @@ class FilterCandidateTests(unittest.TestCase):
         }
         self.assertEqual(filter_candidates_module.evaluate_record(record, rules), [])
 
+    def test_rejects_when_required_opportunity_signal_is_missing(self) -> None:
+        record = {
+            "project_name": "BTC ETF sees market-wide inflows",
+            "summary": "Macro market update about broad flows and trading volume.",
+            "confidence": 0.8,
+            "tags": [],
+        }
+        rules = {
+            "min_confidence": 0.5,
+            "include_any_tags": [],
+            "exclude_title_keywords": [],
+            "exclude_summary_keywords": [],
+            "require_any_signal": ["participation", "funding", "builder", "early_stage"],
+        }
+        self.assertIn("missing_required_signal", filter_candidates_module.evaluate_record(record, rules))
+
 
 if __name__ == "__main__":
     unittest.main()

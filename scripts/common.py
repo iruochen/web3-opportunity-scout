@@ -363,6 +363,7 @@ def _joined_project_text(project: dict[str, Any]) -> str:
     parts = [str(project.get("summary") or "")]
     parts.extend(str(item) for item in project.get("signals", []))
     parts.extend(str(item) for item in project.get("funding_signals", []))
+    parts.extend(str(item.get("title") or "") for item in project.get("news_links", []) if isinstance(item, dict))
     return " ".join(parts).lower()
 
 
@@ -457,14 +458,114 @@ def project_negative_signals(project: dict[str, Any]) -> list[str]:
         "no funding movement",
         "no new information",
         "narrative is fading",
+        "listed on binance",
+        "listed on coinbase",
+        "spot etf",
+        "现货etf",
+        "上线币安",
     )
     return _keyword_hits(text, keywords)
+
+
+def project_builder_signals(project: dict[str, Any]) -> list[str]:
+    text = _joined_project_text(project)
+    source_ids = set(_project_source_ids(project))
+    keywords = (
+        "github",
+        "developer",
+        "sdk",
+        "api",
+        "docs",
+        "builder",
+        "hackathon",
+        "demo day",
+        "commit",
+        "open source",
+        "开发者",
+        "黑客松",
+        "文档",
+    )
+    hits = _keyword_hits(text, keywords)
+    if "github_trending_builders" in source_ids:
+        hits.append("github source")
+    return _dedupe_preserve_order(hits)
+
+
+def project_token_status(project: dict[str, Any]) -> str:
+    explicit = str(project.get("token_status") or "").strip().lower()
+    if explicit:
+        return explicit
+
+    text = _joined_project_text(project)
+    name = str(project.get("canonical_name") or project.get("project_name") or "").strip()
+    if is_established_project(name):
+        return "listed_or_established"
+
+    listed_keywords = (
+        "listed on binance",
+        "listed on coinbase",
+        "listed on okx",
+        "cex listing",
+        "上线币安",
+        "上线 okx",
+        "上线欧易",
+        "已上线",
+    )
+    token_keywords = (
+        "token generation event",
+        " tge",
+        "governance token",
+        "launched token",
+        "airdrop claim",
+        "代币已",
+        "发币",
+        "空投领取",
+    )
+    pretoken_keywords = (
+        "pre-token",
+        "pre token",
+        "no token",
+        "points",
+        "testnet",
+        "waitlist",
+        "beta",
+        "quest",
+        "早期",
+        "积分",
+        "测试网",
+        "候补名单",
+        "白名单",
+    )
+    if any(keyword in text for keyword in listed_keywords):
+        return "listed_or_established"
+    if any(keyword in text for keyword in token_keywords):
+        return "token_live"
+    if any(keyword in text for keyword in pretoken_keywords):
+        return "pre_token_likely"
+    return "unknown"
+
+
+def project_stage(project: dict[str, Any]) -> str:
+    text = _joined_project_text(project)
+    if project_strong_participation_signals(project):
+        return "actionable_early"
+    if project_funding_evidence(project) and project_token_status(project) in {"pre_token_likely", "unknown"}:
+        return "funded_pre_access"
+    if project_builder_signals(project):
+        return "builder_signal"
+    if project_token_status(project) in {"listed_or_established", "token_live"}:
+        return "post_token_or_established"
+    if any(keyword in text for keyword in ("seed", "pre-seed", "grant", "hackathon", "demo day")):
+        return "early_research"
+    return "unclear"
 
 
 def project_actionability_score(project: dict[str, Any]) -> float:
     participation = project_participation_signals(project)
     strong_participation = project_strong_participation_signals(project)
     funding = project_funding_evidence(project)
+    builder = project_builder_signals(project)
+    token_status = project_token_status(project)
     investors = _project_investors(project)
     team = _project_team(project)
     sources = _project_source_ids(project)
@@ -474,12 +575,20 @@ def project_actionability_score(project: dict[str, Any]) -> float:
     score += min(weak_participation, 2) * 6.0
     if funding:
         score += 22.0
+    if builder:
+        score += min(len(builder), 3) * 8.0
     if investors:
         score += 10.0
     if team:
         score += min(len(team), 3) * 4.0
     if len(sources) >= 2:
         score += 12.0 + min(len(sources) - 2, 2) * 4.0
+    if token_status == "pre_token_likely":
+        score += 14.0
+    elif token_status == "token_live":
+        score -= 16.0
+    elif token_status == "listed_or_established":
+        score -= 35.0
     if project_negative_signals(project):
         score -= 20.0
     return clamp(score, 0.0, 100.0)

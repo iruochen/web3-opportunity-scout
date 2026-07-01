@@ -6,7 +6,22 @@ import argparse
 from pathlib import Path
 from typing import Any
 
-from common import ROOT, ensure_dir, latest_json_file, latest_json_file_for_source, load_effective_yaml, output_dir_from_config, read_json_file, utc_now_iso, write_json_file
+from common import (
+    ROOT,
+    ensure_dir,
+    is_established_project,
+    latest_json_file,
+    latest_json_file_for_source,
+    load_effective_yaml,
+    output_dir_from_config,
+    project_builder_signals,
+    project_funding_evidence,
+    project_participation_signals,
+    project_stage,
+    read_json_file,
+    utc_now_iso,
+    write_json_file,
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -88,6 +103,23 @@ def evaluate_record(record: dict[str, Any], rules: dict[str, Any]) -> list[str]:
     summary_hit = contains_any(summary, list(rules.get("exclude_summary_keywords", [])))
     if summary_hit:
         reasons.append(f"summary_keyword:{summary_hit}")
+
+    if bool(rules.get("exclude_established_projects")) and is_established_project(title):
+        reasons.append("established_project")
+
+    required_signals = [str(item).strip().lower() for item in rules.get("require_any_signal", []) if str(item).strip()]
+    if required_signals:
+        present = set()
+        if project_participation_signals(record):
+            present.add("participation")
+        if project_funding_evidence(record):
+            present.add("funding")
+        if project_builder_signals(record):
+            present.add("builder")
+        if project_stage(record) in {"actionable_early", "funded_pre_access", "builder_signal", "early_research"}:
+            present.add("early_stage")
+        if not (present & set(required_signals)):
+            reasons.append("missing_required_signal")
 
     return reasons
 
