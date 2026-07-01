@@ -45,6 +45,7 @@ def dossier_from_context(project: dict[str, Any]) -> dict[str, Any]:
         "founded": project.get("founded"),
         "team": project.get("team", []),
         "investors": project.get("investors", []),
+        "funding_rounds": project.get("funding_rounds", []),
         "funding_signals": project.get("funding_signals", []),
         "news_links": project.get("news_links", []),
         "opportunity_thesis": project.get("opportunity_thesis", []),

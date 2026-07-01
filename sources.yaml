@@ -129,7 +129,7 @@ sources:
         query:
           limit: 20
     - id: surf_project_ai_news
-      enabled: false
+      enabled: true
       adapter: surf
       type: api
       category: discovery

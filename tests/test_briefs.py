@@ -38,6 +38,7 @@ class BriefRenderingTests(unittest.TestCase):
                 "participation_angle": ["Prioritize testnet access, builder programs, validator or node programs, and ecosystem grants."],
                 "priority_checks": ["Confirm the financing round, lead backers, and the first product or ecosystem milestone expected after the raise."],
                 "investors": ["Airwallex", "Capital 49"],
+                "funding_rounds": [{"round": "Seed", "amount": "$5M", "date": "2026-06-30", "investors": ["Airwallex", "Capital 49"]}],
             }
         ]
         html = render_brief_html(projects, {"chains": [], "sectors": []}, "en")
@@ -45,7 +46,7 @@ class BriefRenderingTests(unittest.TestCase):
         self.assertIn(">global<", html)
         self.assertIn(">general<", html)
         self.assertIn("Metal", html)
-        self.assertIn("Backers: Airwallex, Capital 49", html)
+        self.assertIn("Funding: Seed / $5M / 2026-06-30", html)
 
 
 if __name__ == "__main__":

@@ -143,6 +143,75 @@ def parse_investors(lines: list[str], project_name: str = "", one_liner: str = "
     return sanitize_names(results, project_name=project_name, one_liner=one_liner, website_url=website_url)
 
 
+def parse_funding_rounds(lines: list[str], investors: list[str] | None = None) -> list[dict[str, Any]]:
+    label_values = {
+        "Rounds",
+        "Round",
+        "Amount",
+        "Valuation",
+        "Date",
+        "Investors",
+        "Investors/Shareholders",
+        "Lead",
+        "Fundraising",
+    }
+    round_names = {
+        "Pre-Seed",
+        "Pre Seed",
+        "Seed",
+        "Strategic",
+        "Angel",
+        "Pre-A",
+        "Series A",
+        "Series B",
+        "Series C",
+        "Series D",
+        "Public Sale",
+        "Private Sale",
+        "Grant",
+    }
+    amount_re = re.compile(r"(?i)(?:US\$|\$|USD\s*)\s?[\d,.]+\s*(?:k|m|b|million|billion)?|[\d,.]+\s*(?:million|billion)\s*(?:usd|dollars)?")
+    date_re = re.compile(r"^\d{4}(?:[-/.]\d{1,2}(?:[-/.]\d{1,2})?)?$|^[A-Z][a-z]{2,9}\s+\d{1,2},\s+\d{4}$")
+    investor_set = {item.strip() for item in investors or [] if item.strip()}
+    rounds: list[dict[str, Any]] = []
+    current: dict[str, Any] | None = None
+
+    def flush() -> None:
+        nonlocal current
+        if current and any(current.get(key) for key in ("round", "amount", "date", "investors")):
+            if current not in rounds:
+                rounds.append(current)
+        current = None
+
+    for raw_line in lines:
+        line = str(raw_line).strip()
+        if not line or line in label_values or line == "Related News":
+            continue
+        if line in round_names or re.fullmatch(r"Series\s+[A-Z](?:\+)?", line, flags=re.IGNORECASE):
+            flush()
+            current = {"round": line}
+            continue
+        if amount_re.search(line):
+            if current is None:
+                current = {}
+            current.setdefault("amount", line)
+            continue
+        if date_re.search(line):
+            if current is None:
+                current = {}
+            current.setdefault("date", line)
+            continue
+        if line in investor_set:
+            if current is None:
+                continue
+            current.setdefault("investors", [])
+            if line not in current["investors"]:
+                current["investors"].append(line)
+
+    flush()
+    return rounds[:5]
+
+
 def parse_team_links(links: list[dict[str, str]]) -> list[dict[str, str]]:
     people: list[dict[str, str]] = []
     for item in links:
@@ -348,6 +417,7 @@ def scrape_project(driver: webdriver.Chrome, project: dict[str, Any]) -> dict[st
             one_liner=str(one_liner or project.get("one_liner") or ""),
             website_url=str(link_info["website_url"] or ""),
         )
+    funding_rounds = parse_funding_rounds(fundraising_lines, investors)
     team = parse_team_links(team_links)
     if not team:
         team = parse_team(team_lines)
@@ -371,6 +441,7 @@ def scrape_project(driver: webdriver.Chrome, project: dict[str, Any]) -> dict[st
         "project_links": link_info["project_links"],
         "team": team,
         "investors": investors[:12],
+        "funding_rounds": funding_rounds,
         "news_links": news_links,
         "funding_signals": funding_signals[:3],
         "fetched_at": utc_now_iso(),

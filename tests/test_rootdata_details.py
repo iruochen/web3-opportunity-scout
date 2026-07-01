@@ -133,6 +133,35 @@ class RootDataDetailParsingTests(unittest.TestCase):
         )
         self.assertEqual(investors, ["Firefly"])
 
+    def test_parse_funding_rounds_extracts_amount_and_date(self) -> None:
+        rounds = fetch_rootdata_details.parse_funding_rounds(
+            [
+                "Fundraising",
+                "Rounds",
+                "Amount",
+                "Date",
+                "Investors/Shareholders",
+                "Seed",
+                "$5M",
+                "2026-06-30",
+                "Lead",
+                "Airwallex",
+                "Capital 49",
+            ],
+            ["Airwallex", "Capital 49"],
+        )
+        self.assertEqual(rounds[0]["round"], "Seed")
+        self.assertEqual(rounds[0]["amount"], "$5M")
+        self.assertEqual(rounds[0]["date"], "2026-06-30")
+        self.assertEqual(rounds[0]["investors"], ["Airwallex", "Capital 49"])
+
+    def test_parse_funding_rounds_ignores_avatar_initials(self) -> None:
+        rounds = fetch_rootdata_details.parse_funding_rounds(
+            ["Investors/Shareholders", "Lead", "P", "Polychain", "H", "HSG"],
+            ["Polychain", "HSG"],
+        )
+        self.assertEqual(rounds, [])
+
 
 if __name__ == "__main__":
     unittest.main()

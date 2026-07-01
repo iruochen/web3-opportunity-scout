@@ -117,6 +117,28 @@ def merge_news_links(records: list[dict[str, Any]]) -> list[dict[str, str]]:
     return values
 
 
+def merge_funding_rounds(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    values: list[dict[str, Any]] = []
+    seen: set[tuple[str, str, str]] = set()
+    for record in records:
+        rounds = record.get("funding_rounds", [])
+        if not isinstance(rounds, list):
+            continue
+        for item in rounds:
+            if not isinstance(item, dict):
+                continue
+            round_name = str(item.get("round") or "").strip()
+            amount = str(item.get("amount") or "").strip()
+            date = str(item.get("date") or "").strip()
+            investors = [str(name).strip() for name in item.get("investors", []) if str(name).strip()] if isinstance(item.get("investors"), list) else []
+            key = (round_name, amount, date)
+            if not any(key) or key in seen:
+                continue
+            seen.add(key)
+            values.append({"round": round_name, "amount": amount, "date": date, "investors": investors})
+    return values
+
+
 def merge_group(entity_key: str, records: list[dict[str, Any]], source_id: str) -> dict[str, Any]:
     primary = records[0]
     tags: list[str] = []
@@ -156,6 +178,7 @@ def merge_group(entity_key: str, records: list[dict[str, Any]], source_id: str) 
         "founded": first_non_empty(records, "founded"),
         "team": merge_people(records),
         "investors": merge_strings(records, "investors"),
+        "funding_rounds": merge_funding_rounds(records),
         "funding_signals": merge_strings(records, "funding_signals"),
         "news_links": merge_news_links(records),
         "confidence": max(float(record.get("confidence", 0.0)) for record in records),

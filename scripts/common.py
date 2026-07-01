@@ -309,6 +309,27 @@ def _project_funding_signals(project: dict[str, Any]) -> list[str]:
     return _dedupe_preserve_order(recovered)
 
 
+def _project_funding_rounds(project: dict[str, Any]) -> list[dict[str, Any]]:
+    rounds = project.get("funding_rounds", [])
+    if not isinstance(rounds, list):
+        return []
+    results: list[dict[str, Any]] = []
+    seen: set[tuple[str, str, str]] = set()
+    for item in rounds:
+        if not isinstance(item, dict):
+            continue
+        round_name = str(item.get("round") or "").strip()
+        amount = str(item.get("amount") or "").strip()
+        date = str(item.get("date") or "").strip()
+        investors = [str(name).strip() for name in item.get("investors", []) if str(name).strip()] if isinstance(item.get("investors"), list) else []
+        key = (round_name, amount, date)
+        if not any(key) or key in seen:
+            continue
+        seen.add(key)
+        results.append({"round": round_name, "amount": amount, "date": date, "investors": investors})
+    return results
+
+
 def _project_news_links(project: dict[str, Any]) -> list[dict[str, str]]:
     news_links = project.get("news_links", [])
     if not isinstance(news_links, list):
@@ -405,6 +426,15 @@ def project_strong_participation_signals(project: dict[str, Any]) -> list[str]:
 
 
 def project_funding_evidence(project: dict[str, Any]) -> list[str]:
+    rounds = _project_funding_rounds(project)
+    if rounds:
+        evidence: list[str] = []
+        for item in rounds:
+            text = " ".join(str(item.get(key) or "").strip() for key in ("round", "amount") if str(item.get(key) or "").strip())
+            if text:
+                evidence.append(text)
+        if evidence:
+            return evidence
     direct = _project_funding_signals(project)
     if direct:
         return direct
@@ -461,6 +491,7 @@ def infer_opportunity_thesis(project: dict[str, Any], locale: str = "en") -> lis
     investors = _project_investors(project)
     team = _project_team(project)
     funding_signals = _project_funding_signals(project)
+    funding_rounds = _project_funding_rounds(project)
     participation_signals = project_participation_signals(project)
     strong_participation = project_strong_participation_signals(project)
     source_ids = _project_source_ids(project)
@@ -473,11 +504,29 @@ def infer_opportunity_thesis(project: dict[str, Any], locale: str = "en") -> lis
         else:
             theses.append(f"It is showing up across {len(source_ids)} source types, which reduces single-feed noise.")
 
-    if funding_signals:
+    if funding_rounds:
+        first_round = funding_rounds[0]
+        round_name = str(first_round.get("round") or "").strip()
+        amount = str(first_round.get("amount") or "").strip()
         if locale == "zh":
-            theses.append(f"已经出现公开融资线索，当前更值得盯融资后会不会跟出内测、合作或激励计划。")
+            if round_name and amount:
+                theses.append(f"已看到 {round_name} 融资金额 {amount}，资金信号足够明确，下一步要看是否开放真实参与入口。")
+            elif amount:
+                theses.append(f"已看到融资金额 {amount}，下一步要看是否开放真实参与入口。")
+            else:
+                theses.append("已看到结构化融资记录，下一步要看是否开放真实参与入口。")
         else:
-            theses.append("Public financing signal is already visible, so the real edge is whether it is followed by beta, partnerships, or incentives.")
+            if round_name and amount:
+                theses.append(f"A {round_name} round of {amount} is visible; the next question is whether real access opens.")
+            elif amount:
+                theses.append(f"A funding amount of {amount} is visible; the next question is whether real access opens.")
+            else:
+                theses.append("Structured funding is visible; the next question is whether real access opens.")
+    elif funding_signals:
+        if locale == "zh":
+            theses.append("已经出现公开融资线索，资金面只作为筛选权重，真正要看有没有内测、任务或激励入口。")
+        else:
+            theses.append("Public financing is visible, but the real edge is whether it is followed by beta, quests, or incentives.")
     elif investors:
         joined = ", ".join(investors[:3])
         if locale == "zh":
@@ -517,6 +566,7 @@ def infer_participation_angle(project: dict[str, Any], locale: str = "en") -> li
     summary = _project_summary(project).lower()
     investors = _project_investors(project)
     funding_signals = _project_funding_signals(project)
+    funding_rounds = _project_funding_rounds(project)
     participation_signals = project_participation_signals(project)
     strong_participation = project_strong_participation_signals(project)
     actions: list[str] = []
@@ -547,11 +597,11 @@ def infer_participation_angle(project: dict[str, Any], locale: str = "en") -> li
             if locale == "zh"
             else "Look for developer previews, technical demos, pilot integrations, and research community access."
         )
-    if funding_signals or investors:
+    if funding_signals or funding_rounds or investors:
         actions.append(
-            "把融资节点当成时间信号，重点观察融资后 1 到 3 周内有没有产品开放、合作公告或激励上线。"
+            "资金面只当筛选权重；真正上手前优先找官方任务、waitlist、testnet、points 或生态计划入口。"
             if locale == "zh"
-            else "Use the financing event as a timing signal and watch the next one to three weeks for product access, partnerships, or incentives."
+            else "Treat funding as a ranking signal only; before acting, look for official quests, waitlists, testnets, points, or ecosystem programs."
         )
     if {"consumer", "payment", "crypto card", "did"} & tags or "consumer" in summary:
         actions.append(
@@ -595,17 +645,17 @@ def infer_validation_sources(project: dict[str, Any], locale: str = "en") -> lis
 def infer_priority_checks(project: dict[str, Any], locale: str = "en") -> list[str]:
     tags = _project_tags(project)
     summary = _project_summary(project).lower()
-    investors = _project_investors(project)
     funding_signals = _project_funding_signals(project)
+    funding_rounds = _project_funding_rounds(project)
     participation_signals = project_participation_signals(project)
     strong_participation = project_strong_participation_signals(project)
     checks: list[str] = []
 
-    if funding_signals or investors:
+    if funding_signals or funding_rounds:
         checks.append(
-            "确认融资轮次、领投方和融资后第一波要落地的产品/生态动作。"
+            "从融资新闻跳到官网和 X，确认是否已经挂出任务、waitlist、testnet、points 或合作申请入口。"
             if locale == "zh"
-            else "Confirm the financing round, lead backers, and the first product or ecosystem milestone expected after the raise."
+            else "Jump from funding coverage to the official site and X to confirm whether quests, waitlists, testnets, points, or partner applications are live."
         )
     if {"infra", "layer1", "layer2", "modular"} & tags:
         checks.append(

@@ -63,8 +63,14 @@ def build_record(item: dict[str, Any], detail: dict[str, Any] | None, source_id:
     if investors:
         signal_parts.append("Investors: " + ", ".join(str(name).strip() for name in investors[:4] if str(name).strip()))
     funding_signals = (detail or {}).get("funding_signals") if isinstance((detail or {}).get("funding_signals"), list) else []
+    funding_rounds = (detail or {}).get("funding_rounds") if isinstance((detail or {}).get("funding_rounds"), list) else []
     if funding_signals:
         signal_parts.append("Funding signal: " + str(funding_signals[0]).strip())
+    if funding_rounds:
+        first_round = funding_rounds[0]
+        if isinstance(first_round, dict):
+            parts = [str(first_round.get("round") or "").strip(), str(first_round.get("amount") or "").strip()]
+            signal_parts.append("Funding round: " + " ".join(part for part in parts if part))
 
     return {
         "id": f"rootdata:{project_id}",
@@ -86,6 +92,7 @@ def build_record(item: dict[str, Any], detail: dict[str, Any] | None, source_id:
         "founded": founded,
         "team": (detail or {}).get("team", []),
         "investors": investors,
+        "funding_rounds": funding_rounds,
         "funding_signals": funding_signals,
         "raw_ref": {
             "project_id": project_id,

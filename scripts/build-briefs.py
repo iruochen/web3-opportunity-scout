@@ -83,20 +83,47 @@ def build_project_setup(project: dict[str, Any], locale: str) -> str:
     return "，".join(parts) + "。"
 
 
+def funding_round_lines(project: dict[str, Any], locale: str) -> list[str]:
+    rounds = project.get("funding_rounds", [])
+    if not isinstance(rounds, list):
+        return []
+    lines: list[str] = []
+    for item in rounds[:3]:
+        if not isinstance(item, dict):
+            continue
+        round_name = str(item.get("round") or "").strip()
+        amount = str(item.get("amount") or "").strip()
+        date = str(item.get("date") or "").strip()
+        investors = [str(name).strip() for name in item.get("investors", []) if str(name).strip()] if isinstance(item.get("investors"), list) else []
+        parts = []
+        if round_name:
+            parts.append(round_name)
+        if amount:
+            parts.append(amount)
+        if date:
+            parts.append(date)
+        if investors:
+            parts.append(("投资方 " if locale == "zh" else "Backers ") + ", ".join(investors[:4]))
+        if parts:
+            lines.append(("融资: " if locale == "zh" else "Funding: ") + " / ".join(parts))
+    return lines
+
+
 def build_fact_lines(project: dict[str, Any], locale: str) -> list[str]:
     facts: list[str] = []
+    facts.extend(funding_round_lines(project, locale))
     investors = [str(item).strip() for item in project.get("investors", []) if str(item).strip()]
     funding_signals = [str(item).strip() for item in project.get("funding_signals", []) if str(item).strip()]
     team = project.get("team", []) if isinstance(project.get("team", []), list) else []
     founded = str(project.get("founded") or "").strip()
     signals = [str(item).strip() for item in project.get("supporting_signals", []) if str(item).strip()]
 
-    if funding_signals:
+    if funding_signals and not facts:
         funding_text = funding_signals[0]
         if locale == "zh":
             funding_text = translate_funding_signal_zh(funding_text)
         facts.append(("融资线索: " if locale == "zh" else "Funding: ") + funding_text)
-    elif investors:
+    elif investors and not any(line.startswith(("融资:", "Funding:")) for line in facts):
         facts.append(("投资方: " if locale == "zh" else "Backers: ") + ", ".join(investors[:4]))
     if team:
         lead_names = ", ".join(str(item.get("name") or "").strip() for item in team[:3] if str(item.get("name") or "").strip())
@@ -196,15 +223,56 @@ def markdown_cell(value: Any) -> str:
     return str(value).replace("|", "\\|").replace("\n", " ").strip()
 
 
+def access_summary(project: dict[str, Any], locale: str) -> str:
+    tags = {str(tag).strip().lower() for tag in project.get("tags", []) if str(tag).strip()}
+    text = " ".join(
+        [str(project.get("summary") or "")]
+        + [str(item) for item in project.get("supporting_signals", [])]
+    ).lower()
+    items: list[str] = []
+
+    def add(label_zh: str, label_en: str) -> None:
+        label = label_zh if locale == "zh" else label_en
+        if label not in items:
+            items.append(label)
+
+    if "waitlist" in text or "候补" in text:
+        add("Waitlist", "Waitlist")
+    if "points" in text or "积分" in text:
+        add("积分 / Points", "Points")
+    if "quest" in text or "任务" in text:
+        add("任务 / Quest", "Quests")
+    if {"infra", "layer1", "layer2", "modular"} & tags or "testnet" in text or "测试网" in text:
+        add("测试网", "Testnet")
+        add("Builder program", "Builder program")
+    if "validator" in text or "验证者" in text:
+        add("验证者 / 节点", "Validator / node")
+    if "grant" in text or "资助" in text:
+        add("Grant", "Grants")
+    if {"defi", "dex", "lending", "stablecoin protocol", "prediction market", "yield aggregator"} & tags:
+        add("Beta", "Beta")
+        add("流动性激励", "Liquidity incentives")
+    if {"ai", "fhe", "privacy", "r&d", "cloud computing"} & tags:
+        add("Dev preview", "Dev preview")
+        add("技术 demo", "Technical demo")
+    if {"consumer", "payment", "crypto card", "did"} & tags:
+        add("邀请 / referral", "Referral")
+        add("首批 onboarding", "First-wave onboarding")
+    if not items:
+        add("官网 / X 监控", "Official site / X")
+        add("等任务或积分入口", "Wait for quests or points")
+    return " / ".join(items[:4])
+
+
 def render_markdown_overview_rows(projects: list[dict[str, Any]], locale: str) -> list[str]:
     if locale == "zh":
-        rows = ["| # | 项目 | 评分 | 机会信号 | 首要动作 |", "|---:|---|---:|---|---|"]
+        rows = ["| # | 项目 | 评分 | 机会信号 | 参与角度 |", "|---:|---|---:|---|---|"]
     else:
-        rows = ["| # | Project | Score | Opportunity signal | First action |", "|---:|---|---:|---|---|"]
+        rows = ["| # | Project | Score | Opportunity signal | Participation angle |", "|---:|---|---:|---|---|"]
     for index, project in enumerate(projects, start=1):
         label = label_zh(project["label"]) if locale == "zh" else project["label"]
         signal = " ".join(localized_items(project, "opportunity_thesis", locale)) or "n/a"
-        action = " ".join(localized_items(project, "priority_checks", locale)) or "n/a"
+        action = access_summary(project, locale)
         rows.append(
             "| "
             + " | ".join(
@@ -248,8 +316,6 @@ def render_brief_en(projects: list[dict[str, Any]], focus: dict[str, Any]) -> st
         lines.append("")
         lines.append("**Hard facts**")
         lines.extend(f"- {item}" for item in fact_lines or ["n/a"])
-        lines.append("")
-        lines.append(f"**Priority checks:** {' '.join(localized_items(project, 'priority_checks', 'en')) or 'n/a'}")
         lines.append("")
         lines.append(f"**Sources:** {', '.join(localized_items(project, 'validation_sources', 'en')) or 'n/a'}")
         lines.append("")
@@ -355,8 +421,6 @@ def render_brief_zh(projects: list[dict[str, Any]], focus: dict[str, Any]) -> st
         lines.append("**硬线索**")
         lines.extend(f"- {item}" for item in fact_lines or ["n/a"])
         lines.append("")
-        lines.append(f"**优先补查：** {' '.join(localized_items(project, 'priority_checks', 'zh')) or 'n/a'}")
-        lines.append("")
         lines.append(f"**建议来源：** {', '.join(localized_items(project, 'validation_sources', 'zh')) or 'n/a'}")
         lines.append("")
         lines.append(f"**链接：** {render_link_markdown(project, 'zh')}")
@@ -389,7 +453,7 @@ def render_thesis_en(project: dict[str, Any]) -> str:
             "",
             *[f"- {signal}" for signal in project.get("supporting_signals", [])],
             "",
-            "## Priority Checks",
+            "## Access Checks",
             "",
             *[f"- {item}" for item in localized_items(project, "priority_checks", "en")],
             "",
@@ -426,7 +490,7 @@ def render_thesis_zh(project: dict[str, Any]) -> str:
             "",
             *[f"- {signal}" for signal in project.get("supporting_signals", [])],
             "",
-            "## 优先补查",
+            "## 参与入口核查",
             "",
             *[f"- {item}" for item in localized_items(project, "priority_checks", "zh")],
             "",
@@ -445,8 +509,7 @@ def render_project_cards_html(projects: list[dict[str, Any]], locale: str) -> st
         score = html_escape(str(project["score"]))
         label = html_escape(label_zh(project["label"]) if locale == "zh" else project["label"])
         participation = localized_items(project, "participation_angle", locale)
-        checks = localized_items(project, "priority_checks", locale)
-        primary_check = checks[0] if checks else "n/a"
+        primary_action = access_summary(project, locale)
         score_label = "评分" if locale == "zh" else "Score"
         project_setup = build_project_setup(project, locale)
         action_premise = (
@@ -458,7 +521,7 @@ def render_project_cards_html(projects: list[dict[str, Any]], locale: str) -> st
         why_label = "为什么值得跟" if locale == "zh" else "Why track now"
         angle_label = "参与动作" if locale == "zh" else "Participation angle"
         signal_label = "硬线索" if locale == "zh" else "Hard facts"
-        next_label = "优先补查" if locale == "zh" else "Priority check"
+        access_label = "参与入口" if locale == "zh" else "Access angle"
         link_label = "链接集合" if locale == "zh" else "Links"
         fact_lines = build_fact_lines(project, locale)
         opportunity_badges = build_opportunity_badges(project, locale)
@@ -484,7 +547,7 @@ def render_project_cards_html(projects: list[dict[str, Any]], locale: str) -> st
                     f'  <p class="setup-inline">{html_escape(project_setup)}</p>',
                     '  <div class="compact-grid">',
                     f'    <section class="mini-block"><span class="block-label">{why_label}</span><p>{html_escape(action_premise)}</p></section>',
-                    f'    <section class="mini-block"><span class="block-label">{next_label}</span><p>{html_escape(primary_check)}</p></section>',
+                    f'    <section class="mini-block"><span class="block-label">{access_label}</span><p>{html_escape(primary_action)}</p></section>',
                     "  </div>",
                     f'  <div class="card-links"><span class="block-label">{link_label}</span><div class="link-row">{link_html}</div></div>',
                     '  <details class="detail-drawer">',
