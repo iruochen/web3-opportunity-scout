@@ -223,6 +223,74 @@ def markdown_cell(value: Any) -> str:
     return str(value).replace("|", "\\|").replace("\n", " ").strip()
 
 
+def compact_sentence(value: Any, limit: int = 130) -> str:
+    text = " ".join(str(value or "").split())
+    if len(text) <= limit:
+        return text
+    return text[: max(0, limit - 1)].rstrip() + "…"
+
+
+def funding_summary(project: dict[str, Any], locale: str) -> str:
+    rounds = project.get("funding_rounds", [])
+    if isinstance(rounds, list) and rounds and isinstance(rounds[0], dict):
+        first = rounds[0]
+        parts = [str(first.get("round") or "").strip(), str(first.get("amount") or "").strip()]
+        text = " ".join(part for part in parts if part)
+        if text:
+            return ("融资 " if locale == "zh" else "funding ") + text
+    investors = [str(item).strip() for item in project.get("investors", []) if str(item).strip()]
+    if investors:
+        joined = ", ".join(investors[:3])
+        return (f"投资方 {joined}" if locale == "zh" else f"backers {joined}")
+    return ""
+
+
+def rank_signal(project: dict[str, Any], locale: str) -> str:
+    for signal in project.get("supporting_signals", []):
+        text = str(signal)
+        if text.startswith("RootData hot rank:"):
+            rank = text.split(":", 1)[1].strip()
+            return f"RootData #{rank}" if locale == "zh" else f"RootData rank #{rank}"
+    return ""
+
+
+def concise_opportunity_signal(project: dict[str, Any], locale: str) -> str:
+    token_status = str(project.get("token_status") or "")
+    actionability = str(project.get("actionability_level") or "")
+    source_count = len(project.get("source_ids", []) if isinstance(project.get("source_ids", []), list) else [])
+    pieces: list[str] = []
+    if token_status == "pre_token_likely":
+        pieces.append("pre-token" if locale != "zh" else "疑似未发币")
+    funding = funding_summary(project, locale)
+    if funding:
+        pieces.append(funding)
+    participation = project.get("participation_signals", [])
+    if isinstance(participation, list) and participation:
+        joined = ", ".join(str(item) for item in participation[:2])
+        pieces.append(("参与信号 " if locale == "zh" else "access ") + joined)
+    elif actionability == "executable":
+        pieces.append("已有可执行入口" if locale == "zh" else "executable access")
+    rank = rank_signal(project, locale)
+    if rank:
+        pieces.append(rank)
+    if source_count >= 2:
+        pieces.append(f"{source_count} 源交叉" if locale == "zh" else f"{source_count} sources")
+    if pieces:
+        return "；".join(pieces) + "。"
+    fallback = " ".join(localized_items(project, "opportunity_thesis", locale)[:1]) or project.get("summary") or "n/a"
+    return compact_sentence(fallback)
+
+
+def concise_next_move(project: dict[str, Any], locale: str) -> str:
+    participation = localized_items(project, "participation_angle", locale)
+    if participation:
+        return compact_sentence(participation[0], 120)
+    checks = localized_items(project, "priority_checks", locale)
+    if checks:
+        return compact_sentence(checks[0], 120)
+    return "先核查官网/X 是否有真实入口。" if locale == "zh" else "Check official site/X for a real access path."
+
+
 def access_summary(project: dict[str, Any], locale: str) -> str:
     tags = {str(tag).strip().lower() for tag in project.get("tags", []) if str(tag).strip()}
     text = " ".join(
@@ -284,8 +352,8 @@ def render_markdown_overview_rows(projects: list[dict[str, Any]], locale: str) -
         rows = ["| # | Project | Score | Opportunity signal | Participation angle |", "|---:|---|---:|---|---|"]
     for index, project in enumerate(projects, start=1):
         label = label_zh(project["label"]) if locale == "zh" else project["label"]
-        signal = " ".join(localized_items(project, "opportunity_thesis", locale)) or "n/a"
-        action = access_summary(project, locale)
+        signal = concise_opportunity_signal(project, locale)
+        action = concise_next_move(project, locale)
         score_text = f"{project['score']} ({label}; {opportunity_meta(project, locale)})"
         rows.append(
             "| "
@@ -315,7 +383,7 @@ def render_brief_en(projects: list[dict[str, Any]], focus: dict[str, Any]) -> st
     lines.append("")
     for index, project in enumerate(projects, start=1):
         project_summary = build_project_setup(project, "en")
-        action_premise = " ".join(localized_items(project, "opportunity_thesis", "en")) or "Only actionable when a concrete participation surface is live."
+        action_premise = concise_opportunity_signal(project, "en")
         fact_lines = build_fact_lines(project, "en")
         lines.append(f"### {index}. {project['project_name']}")
         lines.append("")
@@ -325,10 +393,10 @@ def render_brief_en(projects: list[dict[str, Any]], focus: dict[str, Any]) -> st
         lines.append("")
         lines.append(f"**Setup:** {project_summary}")
         lines.append("")
-        lines.append(f"**Why now:** {action_premise}")
+        lines.append(f"**Opportunity signal:** {action_premise}")
         lines.append("")
         lines.append("**Next moves**")
-        lines.extend(f"- {item}" for item in localized_items(project, "participation_angle", "en") or ["n/a"])
+        lines.extend(f"- {item}" for item in [concise_next_move(project, "en")])
         lines.append("")
         lines.append("**Hard facts**")
         lines.extend(f"- {item}" for item in fact_lines or ["n/a"])
@@ -421,7 +489,7 @@ def render_brief_zh(projects: list[dict[str, Any]], focus: dict[str, Any]) -> st
     lines.append("")
     for index, project in enumerate(projects, start=1):
         project_summary = build_project_setup(project, "zh")
-        action_premise = " ".join(localized_items(project, "opportunity_thesis", "zh")) or "只有在真实参与入口已经开放时才值得上手。"
+        action_premise = concise_opportunity_signal(project, "zh")
         fact_lines = build_fact_lines(project, "zh")
         lines.append(f"### {index}. {project['project_name']}")
         lines.append("")
@@ -431,10 +499,10 @@ def render_brief_zh(projects: list[dict[str, Any]], focus: dict[str, Any]) -> st
         lines.append("")
         lines.append(f"**项目定位：** {project_summary}")
         lines.append("")
-        lines.append(f"**为什么现在看：** {action_premise}")
+        lines.append(f"**机会判断：** {action_premise}")
         lines.append("")
         lines.append("**下一步动作**")
-        lines.extend(f"- {item}" for item in localized_items(project, "participation_angle", "zh") or ["n/a"])
+        lines.extend(f"- {item}" for item in [concise_next_move(project, "zh")])
         lines.append("")
         lines.append("**硬线索**")
         lines.extend(f"- {item}" for item in fact_lines or ["n/a"])
@@ -533,13 +601,9 @@ def render_project_cards_html(projects: list[dict[str, Any]], locale: str) -> st
         primary_action = access_summary(project, locale)
         score_label = "评分" if locale == "zh" else "Score"
         project_setup = build_project_setup(project, locale)
-        action_premise = (
-            " ".join(localized_items(project, "opportunity_thesis", "zh")) or "只有在真实参与入口已经开放时才值得上手。"
-            if locale == "zh"
-            else (" ".join(localized_items(project, "opportunity_thesis", "en")) or "Only actionable when a concrete participation surface is live.")
-        )
+        action_premise = concise_opportunity_signal(project, locale)
         setup_label = "项目定位" if locale == "zh" else "Project setup"
-        why_label = "为什么值得跟" if locale == "zh" else "Why track now"
+        why_label = "机会判断" if locale == "zh" else "Opportunity signal"
         angle_label = "参与动作" if locale == "zh" else "Participation angle"
         signal_label = "硬线索" if locale == "zh" else "Hard facts"
         access_label = "参与入口" if locale == "zh" else "Access angle"
@@ -553,7 +617,7 @@ def render_project_cards_html(projects: list[dict[str, Any]], locale: str) -> st
         tag_html = "".join(f'<span class="tag-pill">{html_escape(tag)}</span>' for tag in project.get("tags", [])[:4])
         badge_html = "".join(f'<span class="opportunity-pill">{html_escape(item)}</span>' for item in opportunity_badges)
         fact_html = "".join(f"<li>{html_escape(item)}</li>" for item in fact_lines) or "<li>n/a</li>"
-        participation_html = "".join(f"<li>{html_escape(item)}</li>" for item in participation) or "<li>n/a</li>"
+        participation_html = f"<li>{html_escape(concise_next_move(project, locale))}</li>"
 
         cards.append(
             "\n".join(

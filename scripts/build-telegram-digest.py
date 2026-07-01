@@ -47,6 +47,57 @@ def link_for(project: dict[str, Any]) -> str:
     )
 
 
+def funding_summary(project: dict[str, Any]) -> str:
+    rounds = project.get("funding_rounds", [])
+    if isinstance(rounds, list) and rounds and isinstance(rounds[0], dict):
+        first = rounds[0]
+        text = " ".join(
+            str(first.get(key) or "").strip()
+            for key in ("round", "amount")
+            if str(first.get(key) or "").strip()
+        )
+        if text:
+            return f"融资 {text}"
+    investors = project.get("investors", [])
+    if isinstance(investors, list) and investors:
+        return "投资方 " + ", ".join(str(item) for item in investors[:3])
+    return ""
+
+
+def rootdata_rank(project: dict[str, Any]) -> str:
+    for signal in project.get("supporting_signals", []):
+        text = str(signal)
+        if text.startswith("RootData hot rank:"):
+            return "RootData #" + text.split(":", 1)[1].strip()
+    return ""
+
+
+def compact_signal(project: dict[str, Any]) -> str:
+    pieces: list[str] = []
+    if project.get("token_status") == "pre_token_likely":
+        pieces.append("疑似未发币")
+    funding = funding_summary(project)
+    if funding:
+        pieces.append(funding)
+    participation = project.get("participation_signals", [])
+    if isinstance(participation, list) and participation:
+        pieces.append("参与信号 " + ", ".join(str(item) for item in participation[:2]))
+    rank = rootdata_rank(project)
+    if rank:
+        pieces.append(rank)
+    return "；".join(pieces) or compact_text(project.get("summary"), 48)
+
+
+def compact_action(project: dict[str, Any]) -> str:
+    participation = project.get("participation_signals", [])
+    if isinstance(participation, list) and participation:
+        return "核查 " + ", ".join(str(item) for item in participation[:2])
+    actions = project.get("participation_angle_zh", [])
+    if isinstance(actions, list) and actions:
+        return compact_text(actions[0], 46)
+    return "核查官网/X 是否开放入口"
+
+
 def unavailable_source_line(state_dir: Path) -> str | None:
     artifact = read_json_file(state_dir / "source-status.json", {})
     sources = artifact.get("sources", {})
@@ -130,8 +181,8 @@ def render_intraday(projects: list[dict[str, Any]], state_dir: Path) -> str:
         lines.append(status_line)
     for project in selected:
         investors = ", ".join(str(item) for item in project.get("investors", [])[:2]) if isinstance(project.get("investors"), list) else ""
-        angle = compact_text(" / ".join(project.get("participation_angle_zh", [])[:1]), 46) if isinstance(project.get("participation_angle_zh"), list) else "等官方入口"
-        thesis = compact_text(" ".join(project.get("opportunity_thesis_zh", [])[:1]), 48) if isinstance(project.get("opportunity_thesis_zh"), list) else compact_text(project.get("summary"), 48)
+        angle = compact_action(project)
+        thesis = compact_text(compact_signal(project), 50)
         lines.append(f"• {project.get('project_name')}｜{thesis}")
         lines.append(f"  投资方:{investors or '待核'}｜参与:{angle}｜{link_for(project)}")
     return "\n".join(lines).strip() + "\n"
@@ -152,8 +203,8 @@ def render_early(projects: list[dict[str, Any]], state_dir: Path) -> str:
         first_round = funding[0] if isinstance(funding, list) and funding and isinstance(funding[0], dict) else {}
         round_text = " / ".join(str(first_round.get(key) or "").strip() for key in ("round", "amount") if str(first_round.get(key) or "").strip()) or "融资已确认"
         investors = ", ".join(str(item) for item in project.get("investors", [])[:3]) if isinstance(project.get("investors"), list) else ""
-        thesis = compact_text(" ".join(project.get("opportunity_thesis_zh", [])[:1]), 56)
-        angle = compact_text(" / ".join(project.get("participation_angle_zh", [])[:1]), 56)
+        thesis = compact_text(compact_signal(project), 56)
+        angle = compact_action(project)
         lines.extend(
             [
                 f"{tier_stars(project)} {project.get('project_name')}（{project.get('opportunity_tier')}）",

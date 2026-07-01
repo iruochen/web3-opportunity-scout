@@ -87,6 +87,9 @@ def should_include_in_brief(project: dict[str, Any]) -> bool:
     name = str(project.get("project_name", "")).strip()
     if is_established_project(name):
         return False
+    tier = str(project.get("opportunity_tier") or "")
+    if tier.startswith("Rejected"):
+        return False
     actionability = project_actionability_score(project)
     funding = project_funding_evidence(project)
     strong_participation = project_strong_participation_signals(project)
