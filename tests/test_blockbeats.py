@@ -75,6 +75,10 @@ class BlockBeatsNormalizeTests(unittest.TestCase):
         self.assertIn("Solana", record["chains"])
         self.assertTrue(record["summary"].startswith("GMGN monitored"))
 
+    def test_feed_name_tracks_source_id(self) -> None:
+        self.assertEqual(normalize_blockbeats.blockbeats_feed_name("blockbeats_financing_newsflash"), "financing")
+        self.assertEqual(normalize_blockbeats.blockbeats_feed_name("blockbeats_first_newsflash"), "first")
+
 
 if __name__ == "__main__":
     unittest.main()

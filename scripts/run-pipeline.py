@@ -115,7 +115,7 @@ def main() -> int:
                         run_step([f"scripts/fetch-{adapter}.py", "--source-id", child_source, "--days", str(args.days)])
                         update_pipeline_stage(state_dir, run_id, f"fetch:{child_source}", completed=True)
 
-                        if adapter == "rootdata":
+                        if adapter == "rootdata" and isinstance(source_def.get("detail_request"), dict):
                             update_pipeline_stage(state_dir, run_id, f"fetch-details:{child_source}")
                             run_step(["scripts/fetch-rootdata-details.py", "--source-id", child_source])
                             update_pipeline_stage(state_dir, run_id, f"fetch-details:{child_source}", completed=True)
@@ -192,7 +192,7 @@ def main() -> int:
             run_step([f"scripts/fetch-{adapter}.py", "--source-id", args.source, "--days", str(args.days)])
             update_pipeline_stage(state_dir, run_id, "fetch", completed=True)
 
-            if adapter == "rootdata":
+            if adapter == "rootdata" and isinstance(source_def.get("detail_request"), dict):
                 update_pipeline_stage(state_dir, run_id, "fetch-details")
                 run_step(["scripts/fetch-rootdata-details.py", "--source-id", args.source])
                 update_pipeline_stage(state_dir, run_id, "fetch-details", completed=True)

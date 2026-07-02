@@ -35,10 +35,11 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def find_latest_cache(cache_dir: Path) -> Path:
-    candidates = sorted(cache_dir.rglob("*.json"))
+def find_latest_cache(cache_dir: Path, source_id: str) -> Path:
+    needle = slugify(source_id)
+    candidates = sorted([item for item in cache_dir.rglob("*.json") if needle in slugify(item.stem)])
     if not candidates:
-        raise FileNotFoundError(f"No BlockBeats cache files found under {cache_dir}")
+        raise FileNotFoundError(f"No BlockBeats cache files found under {cache_dir} for source {source_id}")
     return candidates[-1]
 
 
@@ -89,6 +90,13 @@ def build_entity_key(item: dict[str, Any], title: str, summary: str) -> str:
     return slugify(str(preferred or summary or item.get("id") or "blockbeats"))
 
 
+def blockbeats_feed_name(source_id: str) -> str:
+    for name in ("financing", "important", "ai", "first", "onchain", "original"):
+        if name in source_id:
+            return name
+    return "newsflash"
+
+
 def build_record(item: dict[str, Any], source_id: str, fetched_at: str) -> dict[str, Any]:
     title = str(item.get("title") or f"blockbeats-{item.get('id')}").strip()
     content_text = html_to_text(str(item.get("content") or ""))
@@ -97,17 +105,22 @@ def build_record(item: dict[str, Any], source_id: str, fetched_at: str) -> dict[
     link = str(item.get("url") or item.get("link") or "").strip() or None
     tags = infer_tags(combined_text)
     chains = infer_chains(combined_text)
+    feed_name = blockbeats_feed_name(source_id)
     signals = []
     if item.get("link"):
-        signals.append("BlockBeats original newsflash")
+        signals.append(f"BlockBeats {feed_name} newsflash")
     if item.get("url"):
         signals.append("Contains outbound reference link")
+    if feed_name == "financing":
+        signals.append("Funding signal: BlockBeats financing")
+    if feed_name in {"first", "important"}:
+        signals.append(f"Launch signal: BlockBeats {feed_name}")
 
     return {
         "id": f"blockbeats:{item.get('id')}",
         "entity_key": build_entity_key(item, title, summary),
         "source_id": source_id,
-        "source_type": "blockbeats.newsflash.original",
+        "source_type": f"blockbeats.newsflash.{feed_name}",
         "project_name": title,
         "project_url": link,
         "summary": summary,
@@ -117,7 +130,7 @@ def build_record(item: dict[str, Any], source_id: str, fetched_at: str) -> dict[
         "signals": signals,
         "published_at": parse_observed_at(str(item.get("create_time") or ""), fetched_at),
         "observed_at": fetched_at,
-        "confidence": 0.62,
+        "confidence": 0.7 if feed_name in {"financing", "first", "important"} else 0.62,
         "raw_ref": {
             "blockbeats_id": item.get("id"),
             "link": item.get("link"),
@@ -145,7 +158,7 @@ def main() -> int:
     output_dir = ROOT / str(config.get("profile", {}).get("output_dir", "output")) / "normalized"
     ensure_dir(output_dir)
 
-    input_path = Path(args.input).resolve() if args.input else find_latest_cache(cache_dir)
+    input_path = Path(args.input).resolve() if args.input else find_latest_cache(cache_dir, args.source_id)
     artifact = read_json_file(input_path, {})
     fetched_at = artifact.get("fetched_at") or utc_now_iso()
     payload = artifact.get("response", {}).get("payload", {})

@@ -10,16 +10,53 @@ sources:
 
   social:
     - id: curated_twitter_list
-      enabled: false
-      type: social_feed
+      enabled: true
+      adapter: opentwitter
+      type: api
       category: social
       label: Curated builder and researcher list
       cadence: daily
-      notes: Prefer accounts that post build progress, launch threads, and ecosystem discoveries.
+      notes: Requires OPENTWITTER_API_KEY. Prefer accounts that post build progress, launch threads, and ecosystem discoveries.
+      auth:
+        kind: bearer
+        env: OPENTWITTER_API_KEY
+        header: Authorization
+      request:
+        base_url: https://api.opentwitter.example
+        path: /v1/search
+        method: GET
+        headers:
+          Accept: application/json
+        query:
+          q: "testnet OR waitlist OR points OR grant web3"
+          limit: 20
 
   discovery:
+    - id: rootdata_funding_rounds
+      enabled: true
+      adapter: rootdata
+      type: api
+      category: discovery
+      label: RootData recent funding rounds
+      cadence: daily
+      notes: Requires ROOTDATA_API_KEY. Primary early-stage source; scans recent financing records before hot_index.
+      auth:
+        kind: bearer
+        env: ROOTDATA_API_KEY
+        header: Authorization
+      request:
+        base_url: https://api.rootdata.com
+        path: /open/skill/get_fac
+        method: POST
+        headers:
+          Accept: application/json
+          language: en
+          Content-Type: application/json
+        body:
+          start_time_relative_days: 14
+          limit: 50
     - id: rootdata_projects
-      enabled: false
+      enabled: true
       adapter: rootdata
       type: api
       category: discovery
@@ -51,15 +88,28 @@ sources:
           include_team: true
           include_investors: true
     - id: opennews_projects
-      enabled: false
+      enabled: true
       adapter: opennews
       type: api
       category: discovery
       label: OpenNews project discovery
       cadence: daily
-      notes: Placeholder for future integration. Add auth and request config when credentials are available.
+      notes: Requires OPENNEWS_API_KEY. Used for launch, funding, ecosystem, and early-access news when adapter is installed.
+      auth:
+        kind: bearer
+        env: OPENNEWS_API_KEY
+        header: Authorization
+      request:
+        base_url: https://api.opennews.example
+        path: /v1/search
+        method: GET
+        headers:
+          Accept: application/json
+        query:
+          q: "web3 funding OR testnet OR waitlist OR points"
+          limit: 20
     - id: blockbeats_financing_newsflash
-      enabled: false
+      enabled: true
       adapter: blockbeats
       type: api
       category: discovery
@@ -81,7 +131,7 @@ sources:
           size: 20
           lang: cn
     - id: blockbeats_onchain_newsflash
-      enabled: false
+      enabled: true
       adapter: blockbeats
       type: api
       category: discovery
@@ -95,6 +145,72 @@ sources:
       request:
         base_url: https://api-pro.theblockbeats.info
         path: /v1/newsflash/onchain
+        method: GET
+        headers:
+          Accept: application/json
+        query:
+          page: 1
+          size: 20
+          lang: cn
+    - id: blockbeats_important_newsflash
+      enabled: true
+      adapter: blockbeats
+      type: api
+      category: discovery
+      label: BlockBeats important newsflash
+      cadence: hourly
+      notes: Requires BLOCKBEATS_API_KEY. Captures important market/project signals beyond financing.
+      auth:
+        kind: header
+        env: BLOCKBEATS_API_KEY
+        header: api-key
+      request:
+        base_url: https://api-pro.theblockbeats.info
+        path: /v1/newsflash/important
+        method: GET
+        headers:
+          Accept: application/json
+        query:
+          page: 1
+          size: 20
+          lang: cn
+    - id: blockbeats_ai_newsflash
+      enabled: true
+      adapter: blockbeats
+      type: api
+      category: discovery
+      label: BlockBeats AI newsflash
+      cadence: hourly
+      notes: Requires BLOCKBEATS_API_KEY. Captures AI x crypto launch and funding signals.
+      auth:
+        kind: header
+        env: BLOCKBEATS_API_KEY
+        header: api-key
+      request:
+        base_url: https://api-pro.theblockbeats.info
+        path: /v1/newsflash/ai
+        method: GET
+        headers:
+          Accept: application/json
+        query:
+          page: 1
+          size: 20
+          lang: cn
+    - id: blockbeats_first_newsflash
+      enabled: true
+      adapter: blockbeats
+      type: api
+      category: discovery
+      label: BlockBeats first newsflash
+      cadence: hourly
+      notes: Requires BLOCKBEATS_API_KEY. Captures first/launch-stage signals for early participation.
+      auth:
+        kind: header
+        env: BLOCKBEATS_API_KEY
+        header: api-key
+      request:
+        base_url: https://api-pro.theblockbeats.info
+        path: /v1/newsflash/first
         method: GET
         headers:
           Accept: application/json

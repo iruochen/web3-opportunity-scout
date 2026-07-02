@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -53,9 +53,13 @@ def build_request_config(
     if limit is not None:
         body["limit"] = limit
         query["limit"] = limit
-    if days is not None:
+    has_relative_start = body.get("start_time_relative_days") is not None
+    if days is not None and not has_relative_start:
         body["days"] = days
         query["days"] = days
+    if has_relative_start:
+        relative_days = int(body.pop("start_time_relative_days"))
+        body["start_time"] = (datetime.now(UTC) - timedelta(days=relative_days)).strftime("%Y-%m-%d")
 
     request_cfg["base_url"] = base_url or request_cfg.get("base_url", "")
     request_cfg["path"] = path or request_cfg.get("path", "")

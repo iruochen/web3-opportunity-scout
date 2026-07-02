@@ -16,10 +16,14 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def find_latest_cache(cache_dir: Path) -> Path:
-    candidates = sorted(cache_dir.rglob("*.json"), key=lambda item: (item.stat().st_mtime, str(item)))
+def find_latest_cache(cache_dir: Path, source_id: str) -> Path:
+    needle = slugify(source_id)
+    candidates = sorted(
+        [item for item in cache_dir.rglob("*.json") if needle in slugify(item.stem)],
+        key=lambda item: (item.stat().st_mtime, str(item)),
+    )
     if not candidates:
-        raise FileNotFoundError(f"No RootData cache files found under {cache_dir}")
+        raise FileNotFoundError(f"No RootData cache files found under {cache_dir} for source {source_id}")
     return candidates[-1]
 
 
@@ -42,10 +46,44 @@ def load_latest_detail_records(details_dir: Path) -> dict[int, dict[str, Any]]:
     return mapping
 
 
+def first_value(item: dict[str, Any], *keys: str) -> Any:
+    for key in keys:
+        value = item.get(key)
+        if value not in (None, "", [], {}):
+            return value
+    return None
+
+
+def normalize_investors(value: Any) -> list[str]:
+    if isinstance(value, list):
+        results: list[str] = []
+        for item in value:
+            if isinstance(item, dict):
+                name = str(first_value(item, "name", "investor_name", "org_name") or "").strip()
+            else:
+                name = str(item).strip()
+            if name and name not in results:
+                results.append(name)
+        return results
+    if isinstance(value, str):
+        return [item.strip() for item in value.split(",") if item.strip()]
+    return []
+
+
+def build_funding_round(item: dict[str, Any]) -> dict[str, Any] | None:
+    round_name = str(first_value(item, "round", "rounds", "round_name", "stage", "financing_round") or "").strip()
+    amount = str(first_value(item, "amount", "money", "funding_amount", "raise_amount") or "").strip()
+    date = str(first_value(item, "date", "published_time", "announced_at", "published_at", "time", "financing_time") or "").strip()
+    investors = normalize_investors(first_value(item, "investors", "invests", "investor_list", "lead_investors"))
+    if not any([round_name, amount, date, investors]):
+        return None
+    return {"round": round_name, "amount": amount, "date": date, "investors": investors}
+
+
 def build_record(item: dict[str, Any], detail: dict[str, Any] | None, source_id: str, fetched_at: str) -> dict[str, Any]:
-    project_id = item.get("project_id")
-    project_name = item.get("project_name") or f"rootdata-{project_id}"
-    project_url = (detail or {}).get("website_url") or item.get("rootdataurl") or item.get("X")
+    project_id = first_value(item, "project_id", "id", "item_id")
+    project_name = first_value(item, "project_name", "name", "project", "item_name") or f"rootdata-{project_id}"
+    project_url = (detail or {}).get("website_url") or first_value(item, "rootdataurl", "rootdata_url", "website", "website_url", "X")
     tags = (detail or {}).get("tags") if isinstance((detail or {}).get("tags"), list) and (detail or {}).get("tags") else item.get("tags")
     tags = tags if isinstance(tags, list) else []
     summary = (detail or {}).get("details") or item.get("one_liner") or ""
@@ -59,11 +97,17 @@ def build_record(item: dict[str, Any], detail: dict[str, Any] | None, source_id:
     founded = (detail or {}).get("founded")
     if founded:
         signal_parts.append(f"Founded: {founded}")
-    investors = (detail or {}).get("investors") if isinstance((detail or {}).get("investors"), list) else []
+    investors = (detail or {}).get("investors") if isinstance((detail or {}).get("investors"), list) else normalize_investors(first_value(item, "investors", "invests", "investor_list", "lead_investors"))
     if investors:
         signal_parts.append("Investors: " + ", ".join(str(name).strip() for name in investors[:4] if str(name).strip()))
     funding_signals = (detail or {}).get("funding_signals") if isinstance((detail or {}).get("funding_signals"), list) else []
     funding_rounds = (detail or {}).get("funding_rounds") if isinstance((detail or {}).get("funding_rounds"), list) else []
+    funding_round = build_funding_round(item)
+    if funding_round and funding_round not in funding_rounds:
+        funding_rounds = [funding_round, *funding_rounds]
+    if not funding_signals and funding_round:
+        signal = " ".join(str(funding_round.get(key) or "").strip() for key in ("round", "amount") if str(funding_round.get(key) or "").strip())
+        funding_signals = [signal or "RootData funding record"]
     if funding_signals:
         signal_parts.append("Funding signal: " + str(funding_signals[0]).strip())
     if funding_rounds:
@@ -76,7 +120,7 @@ def build_record(item: dict[str, Any], detail: dict[str, Any] | None, source_id:
         "id": f"rootdata:{project_id}",
         "entity_key": slugify(str(project_name)),
         "source_id": source_id,
-        "source_type": "rootdata.hot_index",
+        "source_type": "rootdata.funding" if "funding" in source_id or "fac" in source_id else "rootdata.hot_index",
         "project_name": project_name,
         "project_url": project_url,
         "summary": summary,
@@ -86,7 +130,7 @@ def build_record(item: dict[str, Any], detail: dict[str, Any] | None, source_id:
         "signals": signal_parts,
         "published_at": None,
         "observed_at": fetched_at,
-        "confidence": 0.7,
+        "confidence": 0.78 if funding_rounds else 0.7,
         "website_url": (detail or {}).get("website_url"),
         "x_url": (detail or {}).get("x_url") or item.get("X"),
         "founded": founded,
@@ -97,7 +141,7 @@ def build_record(item: dict[str, Any], detail: dict[str, Any] | None, source_id:
         "raw_ref": {
             "project_id": project_id,
             "x_url": item.get("X"),
-            "rootdata_url": item.get("rootdataurl"),
+            "rootdata_url": first_value(item, "rootdataurl", "rootdata_url"),
             "detail_url": (detail or {}).get("detail_url"),
             "project_links": (detail or {}).get("project_links", []),
             "news_links": (detail or {}).get("news_links", []),
@@ -114,15 +158,21 @@ def main() -> int:
     output_dir = ROOT / str(config.get("profile", {}).get("output_dir", "output")) / "normalized"
     ensure_dir(output_dir)
 
-    input_path = Path(args.input).resolve() if args.input else find_latest_cache(cache_dir)
+    input_path = Path(args.input).resolve() if args.input else find_latest_cache(cache_dir, args.source_id)
     artifact = read_json_file(input_path, {})
     fetched_at = artifact.get("fetched_at") or utc_now_iso()
     payload = artifact.get("response", {}).get("payload", {})
-    records = payload.get("data", []) if isinstance(payload, dict) else []
+    records: Any = []
+    if isinstance(payload, dict):
+        data = payload.get("data", [])
+        if isinstance(data, dict) and isinstance(data.get("items"), list):
+            records = data["items"]
+        else:
+            records = data
     detail_records = load_latest_detail_records(details_dir)
 
     normalized = [
-        build_record(item, detail_records.get(int(item.get("project_id"))) if str(item.get("project_id", "")).isdigit() else None, args.source_id, fetched_at)
+        build_record(item, detail_records.get(int(first_value(item, "project_id", "id", "item_id"))) if str(first_value(item, "project_id", "id", "item_id") or "").isdigit() else None, args.source_id, fetched_at)
         for item in records
         if isinstance(item, dict)
     ]
