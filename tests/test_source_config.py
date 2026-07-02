@@ -50,6 +50,12 @@ class SourceConfigTests(unittest.TestCase):
         self.assertTrue(self.source_by_id("curated_twitter_list")["enabled"])
         self.assertEqual(self.source_by_id("curated_twitter_list")["adapter"], "opentwitter")
 
+    def test_surf_is_enabled_by_default_with_credit_cap(self) -> None:
+        source = self.source_by_id("surf_project_ai_news")
+        self.assertTrue(source["enabled"])
+        self.assertEqual(source["adapter"], "surf")
+        self.assertEqual(source["request"]["query"]["max_queries_per_run"], 2)
+
     def test_minimum_score_matches_early_project_bar(self) -> None:
         self.assertGreaterEqual(float(self.config["risk"]["min_opportunity_score"]), 70.0)
 

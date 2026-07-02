@@ -300,13 +300,13 @@ sources:
         query:
           limit: 20
     - id: surf_project_ai_news
-      enabled: false
+      enabled: true
       adapter: surf
       type: api
       category: discovery
       label: Surf project AI news
       cadence: daily
-      notes: Requires SURF_API_KEY. Use selectively for premium project/news enrichment because each call consumes credits.
+      notes: Requires SURF_API_KEY. Premium enrichment source; keep max_queries_per_run low because each query consumes credits.
       auth:
         kind: bearer
         env: SURF_API_KEY
