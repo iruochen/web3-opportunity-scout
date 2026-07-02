@@ -60,13 +60,53 @@ class DeFiLlamaTests(unittest.TestCase):
 class GitHubTests(unittest.TestCase):
     def test_build_query_strings_adds_cutoff(self) -> None:
         search_queries, request_cfg = fetch_github.build_query_strings(
-            {"request": {"queries": ["web3"], "query": {"per_page": 10}}},
+            {"request": {"queries": ["web3"], "created_within_days": 730, "query": {"per_page": 10}}},
             3,
             7,
         )
         self.assertEqual(request_cfg["query"]["per_page"], 3)
         self.assertEqual(len(search_queries), 1)
+        self.assertIn("created:>=", search_queries[0])
         self.assertIn("pushed:>=", search_queries[0])
+
+    def test_github_quality_filter_skips_low_signal_repos(self) -> None:
+        filters = {
+            "min_stars": 3,
+            "max_stars": 1500,
+            "min_description_chars": 20,
+            "exclude_keywords": ["boilerplate", "bot"],
+        }
+        self.assertEqual(
+            fetch_github.quality_skip_reason(
+                {"stargazers_count": 1, "description": "Useful Web3 project with real code"},
+                filters,
+            ),
+            "stars_below_3",
+        )
+        self.assertEqual(
+            fetch_github.quality_skip_reason(
+                {
+                    "stargazers_count": 10,
+                    "description": "Ethereum dapp boilerplate for demos",
+                    "name": "ethereum-dapp-boilerplate",
+                    "topics": [],
+                },
+                filters,
+            ),
+            "excluded_keyword:boilerplate",
+        )
+        self.assertEqual(
+            fetch_github.quality_skip_reason(
+                {
+                    "stargazers_count": 10,
+                    "description": "Solana new pairs bot for token alerts",
+                    "name": "SolanaNewPairsBot",
+                    "topics": [],
+                },
+                filters,
+            ),
+            "excluded_keyword:bot",
+        )
 
     def test_normalize_github_record_infers_chains_and_tags(self) -> None:
         record = normalize_github.build_record(
@@ -87,6 +127,7 @@ class GitHubTests(unittest.TestCase):
         )
         self.assertIn("Solana", record["chains"])
         self.assertIn("consumer", record["tags"])
+        self.assertTrue(any("GitHub builder signal" in signal for signal in record["signals"]))
         self.assertTrue(any("Matched query" in signal for signal in record["signals"]))
 
 

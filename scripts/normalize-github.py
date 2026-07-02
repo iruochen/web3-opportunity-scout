@@ -48,14 +48,28 @@ def infer_chains(text: str) -> list[str]:
     return chains
 
 
+def repo_momentum_label(item: dict[str, Any]) -> str:
+    stars = int(item.get("stargazers_count") or 0)
+    forks = int(item.get("forks_count") or 0)
+    if stars >= 300 or forks >= 50:
+        return "strong builder momentum"
+    if stars >= 50 or forks >= 10:
+        return "visible builder momentum"
+    return "early builder activity"
+
+
 def build_record(item: dict[str, Any], source_id: str, fetched_at: str) -> dict[str, Any]:
     full_name = str(item.get("full_name") or item.get("name") or "github-repo").strip()
     description = str(item.get("description") or "").strip()
     topics = infer_tags(item)
     query = str(item.get("_query") or "").strip()
+    owner = str(item.get("owner", {}).get("login") or "").strip()
+    pushed_at = item.get("pushed_at")
     signals = [
+        f"GitHub builder signal: {repo_momentum_label(item)}",
         f"GitHub stars: {item.get('stargazers_count', 0)}",
         f"GitHub forks: {item.get('forks_count', 0)}",
+        f"GitHub pushed at: {pushed_at}",
         f"Matched query: {query}",
     ]
     return {
@@ -77,6 +91,9 @@ def build_record(item: dict[str, Any], source_id: str, fetched_at: str) -> dict[
             "query": query,
             "pushed_at": item.get("pushed_at"),
             "language": item.get("language"),
+            "owner": owner,
+            "open_issues_count": item.get("open_issues_count"),
+            "watchers_count": item.get("watchers_count"),
         },
         "status": "candidate",
     }

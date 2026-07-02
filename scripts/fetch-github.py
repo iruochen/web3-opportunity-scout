@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -33,20 +34,87 @@ def build_query_strings(source_def: dict[str, Any], limit: int | None, days: int
         cutoff = (datetime.now(UTC) - timedelta(days=days)).strftime("%Y-%m-%d")
     else:
         cutoff = None
+    created_within_days = int(request_cfg.get("created_within_days", 0) or 0)
+    created_cutoff = (datetime.now(UTC) - timedelta(days=created_within_days)).strftime("%Y-%m-%d") if created_within_days else None
     search_queries = []
     for item in queries or ["web3"]:
-        q = f"{item} pushed:>={cutoff}" if cutoff else item
+        q = item
+        if created_cutoff and "created:" not in q:
+            q = f"{q} created:>={created_cutoff}"
+        if cutoff and "pushed:" not in q:
+            q = f"{q} pushed:>={cutoff}"
         search_queries.append(q)
     base_query["per_page"] = per_page
     request_cfg["query"] = base_query
     return search_queries, request_cfg
 
 
-def perform_request(url: str, headers: dict[str, str]) -> tuple[int, Any]:
+def perform_request(url: str, headers: dict[str, str], attempts: int = 3) -> tuple[int, Any]:
     request = Request(url=url, method="GET", headers=headers)
-    with urlopen(request, timeout=30) as response:
-        payload = response.read().decode("utf-8")
-        return response.status, json.loads(payload)
+    last_error: URLError | TimeoutError | None = None
+    for attempt in range(1, attempts + 1):
+        try:
+            with urlopen(request, timeout=30) as response:
+                payload = response.read().decode("utf-8")
+                return response.status, json.loads(payload)
+        except HTTPError:
+            raise
+        except (URLError, TimeoutError) as exc:
+            last_error = exc
+            if attempt == attempts:
+                raise
+            time.sleep(0.8 * attempt)
+    raise last_error or URLError("unknown GitHub request failure")
+
+
+def _contains_keyword(text: str, keywords: list[str]) -> str | None:
+    lowered = text.lower()
+    for keyword in keywords:
+        normalized = str(keyword).strip().lower()
+        if normalized and normalized in lowered:
+            return normalized
+    return None
+
+
+def quality_skip_reason(item: dict[str, Any], filters: dict[str, Any]) -> str | None:
+    if not filters:
+        return None
+    stars = int(item.get("stargazers_count") or 0)
+    min_stars = int(filters.get("min_stars", 0))
+    max_stars = int(filters.get("max_stars", 0))
+    if min_stars and stars < min_stars:
+        return f"stars_below_{min_stars}"
+    if max_stars and stars > max_stars:
+        return f"stars_above_{max_stars}"
+
+    description = str(item.get("description") or "").strip()
+    min_description_chars = int(filters.get("min_description_chars", 0))
+    if min_description_chars and len(description) < min_description_chars:
+        return f"description_shorter_than_{min_description_chars}"
+
+    owner = str(item.get("owner", {}).get("login") or "").strip()
+    excluded_owners = {str(value).strip().lower() for value in filters.get("exclude_owners", [])}
+    if owner.lower() in excluded_owners:
+        return f"excluded_owner:{owner}"
+
+    name_text = " ".join(
+        str(value)
+        for value in [
+            item.get("name"),
+            item.get("full_name"),
+            item.get("description"),
+            " ".join(str(topic) for topic in item.get("topics", [])),
+        ]
+        if value
+    )
+    keyword = _contains_keyword(name_text, [str(value) for value in filters.get("exclude_keywords", [])])
+    if keyword:
+        return f"excluded_keyword:{keyword}"
+    if item.get("archived"):
+        return "archived"
+    if item.get("fork"):
+        return "fork"
+    return None
 
 
 def cache_file_path(source_id: str, cache_dir_name: str) -> Path:
@@ -97,6 +165,9 @@ def main() -> int:
         return 0
 
     combined_items: list[dict[str, Any]] = []
+    skipped: dict[str, int] = {}
+    seen_full_names: set[str] = set()
+    quality_filters = dict(request_cfg.get("quality_filters", {}))
     last_url = ""
     try:
         for q in search_queries:
@@ -107,6 +178,16 @@ def main() -> int:
             _, payload = perform_request(url, headers)
             for item in payload.get("items", []):
                 if isinstance(item, dict):
+                    full_name = str(item.get("full_name") or "").strip().lower()
+                    if full_name and full_name in seen_full_names:
+                        skipped["duplicate_repo"] = skipped.get("duplicate_repo", 0) + 1
+                        continue
+                    skip_reason = quality_skip_reason(item, quality_filters)
+                    if skip_reason:
+                        skipped[skip_reason] = skipped.get(skip_reason, 0) + 1
+                        continue
+                    if full_name:
+                        seen_full_names.add(full_name)
                     item["_query"] = q
                     combined_items.append(item)
     except HTTPError as exc:
@@ -123,13 +204,21 @@ def main() -> int:
     artifact = {
         "source_id": args.source_id,
         "fetched_at": utc_now_iso(),
-        "request": {"headers": sorted(headers.keys()), "queries": search_queries, "query_defaults": request_cfg.get("query", {})},
+        "request": {
+            "headers": sorted(headers.keys()),
+            "queries": search_queries,
+            "query_defaults": request_cfg.get("query", {}),
+            "quality_filters": quality_filters,
+        },
+        "skipped": skipped,
         "response": {"status_code": 200, "payload": {"items": combined_items}},
     }
     write_json_file(cache_path, artifact)
     update_run_state(state_dir_name, args.source_id, "success", last_url, cache_path, None, len(combined_items))
     print(f"PASS  Cached GitHub payload: {cache_path.relative_to(ROOT)}")
     print(f"PASS  GitHub records fetched: {len(combined_items)}")
+    if skipped:
+        print("PASS  GitHub records skipped: " + ", ".join(f"{key}={value}" for key, value in sorted(skipped.items())))
     return 0
 
 

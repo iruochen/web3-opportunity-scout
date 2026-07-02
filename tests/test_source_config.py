@@ -56,6 +56,18 @@ class SourceConfigTests(unittest.TestCase):
         self.assertEqual(source["adapter"], "surf")
         self.assertEqual(source["request"]["query"]["max_queries_per_run"], 2)
 
+    def test_github_source_uses_builder_quality_filters(self) -> None:
+        source = self.source_by_id("github_trending_builders")
+        queries = source["request"]["queries"]
+        filters = source["request"]["quality_filters"]
+        self.assertTrue(all("stars:" in query for query in queries))
+        self.assertTrue(all("fork:false" in query for query in queries))
+        self.assertNotIn("crypto", queries)
+        self.assertGreaterEqual(filters["min_stars"], 3)
+        self.assertIn("boilerplate", filters["exclude_keywords"])
+        self.assertIn("payment gateway", filters["exclude_keywords"])
+        self.assertIn("bot", filters["exclude_keywords"])
+
     def test_minimum_score_matches_early_project_bar(self) -> None:
         self.assertGreaterEqual(float(self.config["risk"]["min_opportunity_score"]), 70.0)
 
